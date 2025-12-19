@@ -67,7 +67,7 @@ export default function Scene({ energyState, onApplianceClick }: SceneProps) {
     createHouse(scene);
     createSolarPanels(scene);
     createBattery(scene);
-    createAppliances(scene, energyState.consumption.appliances);
+    appliancesRef.current = createAppliances(scene, energyState.consumption.appliances);
     createGround(scene);
 
     // Animation loop
@@ -215,8 +215,8 @@ function createBattery(scene: THREE.Scene) {
   scene.add(battery);
 }
 
-function createAppliances(scene: THREE.Scene, appliances: any[]) {
-  const applianceMap = new Map();
+function createAppliances(scene: THREE.Scene, appliances: any[]): Map<string, THREE.Mesh> {
+  const applianceMap = new Map<string, THREE.Mesh>();
 
   appliances.forEach((appliance) => {
     let geometry: THREE.BufferGeometry;
@@ -264,7 +264,7 @@ function createAppliances(scene: THREE.Scene, appliances: any[]) {
     applianceMap.set(appliance.id, mesh);
   });
 
-  appliancesRef.current = applianceMap;
+  return applianceMap;
 }
 
 function createGround(scene: THREE.Scene) {
