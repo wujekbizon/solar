@@ -7,14 +7,35 @@ export const PHYSICS_CONSTANTS = {
   // Solar Panel Parameters
   SOLAR_PANEL_EFFICIENCY: 0.18,      // 18% typical efficiency
   SOLAR_MAX_POWER: 5.0,               // kW - 5kW system (typical residential)
-  SOLAR_PANEL_COUNT: 16,              // Number of panels
+  SOLAR_PANEL_COUNT: 56,              // Number of panels (4x7 grid per slope, 2 slopes)
 
   // Battery Parameters
   BATTERY_CAPACITY: 13.5,             // kWh - Tesla Powerwall capacity
-  BATTERY_EFFICIENCY: 0.90,           // 90% round-trip efficiency
+  BATTERY_EFFICIENCY: 0.90,           // 90% round-trip efficiency (legacy)
+  BATTERY_CHARGE_EFFICIENCY: 0.96,    // 96% charging efficiency
+  BATTERY_DISCHARGE_EFFICIENCY: 0.97, // 97% discharging efficiency
   BATTERY_MAX_CHARGE_RATE: 5.0,       // kW - Maximum charge/discharge rate
   BATTERY_MIN_SOC: 10,                // % - Minimum state of charge
   BATTERY_MAX_SOC: 100,               // % - Maximum state of charge
+
+  // Wire Resistance (Ohms)
+  WIRE_RESISTANCE: {
+    solarToBattery: 0.02,             // 10m DC wiring
+    batteryToHouse: 0.03,             // 5m DC wiring
+    gridToHouse: 0.05,                // 20m AC wiring
+  },
+  SYSTEM_VOLTAGE: 240,                // Volts
+
+  // Inverter
+  INVERTER_EFFICIENCY: 0.97,          // 97% DC→AC conversion
+
+  // Temperature Effects
+  TEMPERATURE: {
+    solarTempCoefficient: -0.004,     // -0.4% per °C above 25°C
+    batteryTempCoefficient: -0.005,   // -0.5% per 10°C from 20°C
+    solarBaseTemp: 25,                // °C for solar
+    batteryOptimalTemp: 20,           // °C for battery
+  },
 
   // Grid Parameters
   GRID_IMPORT_RATE: 0.13,             // $/kWh - Typical electricity cost

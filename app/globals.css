@@ -3,6 +3,16 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Industrial Theme Colors */
+  --industrial-bg: #0a0e14;
+  --industrial-panel: #141920;
+  --industrial-border: #2d3748;
+  --industrial-accent: #00ff88;
+  --industrial-warning: #ff6b35;
+  --industrial-text: #e2e8f0;
+  --industrial-text-dim: #718096;
+  --industrial-grid: rgba(45, 55, 72, 0.3);
 }
 
 @theme inline {

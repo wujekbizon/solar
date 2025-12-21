@@ -17,6 +17,8 @@ export interface SolarSystem {
   efficiency: number;          // 0-1 - Panel efficiency
   totalGenerated: number;      // kWh - Total energy generated
   panelAngle: number;          // degrees - Panel tilt angle
+  panelCount: number;          // Number of solar panels
+  powerPerPanel: number;       // Watts per panel
 }
 
 export interface BatterySystem {
@@ -25,7 +27,9 @@ export interface BatterySystem {
   stateOfCharge: number;       // 0-100% - Percentage charged
   charging: boolean;           // Is battery charging
   chargingRate: number;        // kW - Current charge/discharge rate
-  efficiency: number;          // 0-1 - Charge/discharge efficiency
+  efficiency: number;          // 0-1 - Charge/discharge efficiency (legacy)
+  chargeEfficiency: number;    // 0-1 - Charging efficiency
+  dischargeEfficiency: number; // 0-1 - Discharging efficiency
   maxChargeRate: number;       // kW - Maximum charge rate (C-rate)
 }
 
@@ -37,6 +41,25 @@ export interface GridConnection {
   totalExported: number;       // kWh - Total exported energy
   importRate: number;          // $/kWh - Cost of imported energy
   exportRate: number;          // $/kWh - Revenue from exported energy
+}
+
+export interface EnergyLosses {
+  wireLosses: {
+    solarToBattery: number;    // kW - Wire loss solar to battery
+    batteryToHouse: number;    // kW - Wire loss battery to house
+    gridToHouse: number;       // kW - Wire loss grid to house
+    total: number;             // kW - Total wire losses
+  };
+  inverterLoss: number;        // kW - DC to AC conversion loss
+  batteryLosses: {
+    charging: number;          // kW - Loss during charging
+    discharging: number;       // kW - Loss during discharging
+  };
+  temperatureLosses: {
+    solar: number;             // kW - Solar panel temp derating
+    battery: number;           // kW - Battery temp effect
+  };
+  totalLosses: number;         // kW - Total system losses
 }
 
 export interface EnergyStatistics {
@@ -57,12 +80,14 @@ export interface EnergySystemState {
   timeSpeed: number;           // Simulation speed multiplier
   weather: WeatherCondition;
   isPaused: boolean;
+  isManualWeatherControl: boolean; // User manually set weather
 
   solar: SolarSystem;
   battery: BatterySystem;
   consumption: PowerConsumption;
   grid: GridConnection;
   statistics: EnergyStatistics;
+  losses: EnergyLosses;        // System energy losses
 }
 
 export interface ApplianceState {

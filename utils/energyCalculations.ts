@@ -12,12 +12,14 @@ import { PHYSICS_CONSTANTS } from './physicsConstants';
  * @param time - Current time in hours (0-24)
  * @param weather - Weather condition
  * @param efficiency - Panel efficiency (0-1)
+ * @param maxPower - Maximum solar system power (kW)
  * @returns Power generated in kW
  */
 export function calculateSolarPower(
   time: number,
   weather: 'sunny' | 'cloudy' | 'night',
-  efficiency: number = PHYSICS_CONSTANTS.SOLAR_PANEL_EFFICIENCY
+  efficiency: number,
+  maxPower: number
 ): number {
   if (weather === 'night') return 0;
 
@@ -25,7 +27,7 @@ export function calculateSolarPower(
   const weatherMultiplier = weather === 'cloudy' ? 0.3 : 1.0;
 
   const power =
-    PHYSICS_CONSTANTS.SOLAR_MAX_POWER *
+    maxPower *
     efficiency *
     sunIntensity *
     weatherMultiplier;
@@ -62,7 +64,9 @@ export function calculateSunIntensity(time: number): number {
  * @param powerFlow - Power in/out of battery (kW, positive = charging)
  * @param deltaTime - Time elapsed (hours)
  * @param capacity - Battery capacity (kWh)
- * @param efficiency - Battery efficiency (0-1)
+ * @param chargeEfficiency - Charging efficiency (0-1)
+ * @param dischargeEfficiency - Discharging efficiency (0-1)
+ * @param temperature - Current temperature (°C)
  * @returns New state of charge (%)
  */
 export function calculateBatterySoC(
@@ -70,12 +74,23 @@ export function calculateBatterySoC(
   powerFlow: number,
   deltaTime: number,
   capacity: number = PHYSICS_CONSTANTS.BATTERY_CAPACITY,
-  efficiency: number = PHYSICS_CONSTANTS.BATTERY_EFFICIENCY
+  chargeEfficiency: number = PHYSICS_CONSTANTS.BATTERY_CHARGE_EFFICIENCY,
+  dischargeEfficiency: number = PHYSICS_CONSTANTS.BATTERY_DISCHARGE_EFFICIENCY,
+  temperature: number = 20
 ): number {
-  // Energy change considering efficiency
-  const energyChange = powerFlow * deltaTime * (powerFlow > 0 ? efficiency : 1 / efficiency);
-  const socChange = (energyChange / capacity) * 100;
+  // Apply temperature effects
+  const tempEffCharge = calculateBatteryTempEfficiency(chargeEfficiency, temperature);
+  const tempEffDischarge = calculateBatteryTempEfficiency(dischargeEfficiency, temperature);
 
+  // Charging (positive) or discharging (negative)
+  const effectiveEfficiency = powerFlow > 0 ? tempEffCharge : tempEffDischarge;
+
+  // Energy change
+  const energyChange = powerFlow > 0
+    ? powerFlow * deltaTime * effectiveEfficiency      // Charging: loses energy
+    : (powerFlow * deltaTime) / effectiveEfficiency;     // Discharging: needs more from battery
+
+  const socChange = (energyChange / capacity) * 100;
   const newSoC = currentSoC + socChange;
 
   return Math.max(
@@ -212,6 +227,11 @@ export function getWeatherFromTime(time: number): 'sunny' | 'cloudy' | 'night' {
     return 'night';
   }
 
+  // Cloudy in middle of day (12pm-4pm)
+  if (time >= 12 && time < 16) {
+    return 'cloudy';
+  }
+
   return 'sunny';
 }
 
@@ -229,4 +249,72 @@ export function calculateSystemEfficiency(
 ): number {
   if (energyIn === 0) return 0;
   return (energyOut / energyIn) * 100;
+}
+
+/**
+ * Calculate wire resistance loss
+ * P_loss = I² × R = (P / V)² × R
+ *
+ * @param power - Power flowing through wire (kW)
+ * @param resistance - Wire resistance (Ohms)
+ * @param voltage - System voltage (V)
+ * @returns Power loss (kW)
+ */
+export function calculateWireLoss(
+  power: number,
+  resistance: number,
+  voltage: number = PHYSICS_CONSTANTS.SYSTEM_VOLTAGE
+): number {
+  if (power <= 0) return 0;
+  const current = (power * 1000) / voltage; // Convert kW to W, then I = P/V
+  return (current * current * resistance) / 1000; // kW
+}
+
+/**
+ * Calculate temperature from time of day (simplified model)
+ *
+ * @param time - Current time in hours (0-24)
+ * @returns Temperature in °C
+ */
+export function calculateTemperature(time: number): number {
+  if (time >= 6 && time < 9) {
+    return 15 + ((time - 6) / 3) * 10; // 15°C → 25°C
+  } else if (time >= 9 && time < 12) {
+    return 25 + ((time - 9) / 3) * 10; // 25°C → 35°C
+  } else if (time >= 12 && time < 15) {
+    return 35; // Peak heat
+  } else if (time >= 15 && time < 18) {
+    return 35 - ((time - 15) / 3) * 15; // 35°C → 20°C
+  } else {
+    return 15; // Night
+  }
+}
+
+/**
+ * Calculate solar panel temperature loss
+ *
+ * @param basePower - Base solar power (kW)
+ * @param temp - Current temperature (°C)
+ * @returns Power loss due to temperature (kW)
+ */
+export function calculateSolarTempLoss(basePower: number, temp: number): number {
+  const tempDiff = temp - PHYSICS_CONSTANTS.TEMPERATURE.solarBaseTemp;
+  if (tempDiff <= 0) return 0;
+  return Math.abs(basePower * PHYSICS_CONSTANTS.TEMPERATURE.solarTempCoefficient * tempDiff);
+}
+
+/**
+ * Calculate battery temperature efficiency adjustment
+ *
+ * @param baseEfficiency - Base efficiency (0-1)
+ * @param temp - Current temperature (°C)
+ * @returns Adjusted efficiency (0-1)
+ */
+export function calculateBatteryTempEfficiency(
+  baseEfficiency: number,
+  temp: number
+): number {
+  const tempDiff = Math.abs(temp - PHYSICS_CONSTANTS.TEMPERATURE.batteryOptimalTemp);
+  const derating = (tempDiff / 10) * PHYSICS_CONSTANTS.TEMPERATURE.batteryTempCoefficient;
+  return Math.max(0.7, baseEfficiency * (1 + derating)); // Min 70% efficiency
 }
