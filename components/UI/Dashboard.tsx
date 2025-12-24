@@ -1,14 +1,18 @@
 'use client';
 
-import { Sun, Battery, Zap, Plug, ArrowUpRight, ArrowDownLeft, Pause, DollarSign } from 'lucide-react';
+import { Sun, Battery, Zap, Plug, ArrowUpRight, ArrowDownLeft, Pause, DollarSign, Calculator, Activity } from 'lucide-react';
 import type { EnergySystemState } from '@/types/energy';
+import { useState } from 'react';
+import { calculateTemperature, calculateCurrent } from '@/utils/energyCalculations';
 
 interface DashboardProps {
   state: EnergySystemState;
 }
 
 export default function Dashboard({ state }: DashboardProps) {
-  const { solar, battery, consumption, grid, statistics, losses, currentTime, weather } = state;
+  const { solar, battery, consumption, grid, statistics, losses, currentTime, weather, system } = state;
+  const [equationsOpen, setEquationsOpen] = useState(false);
+  const [flowVizOpen, setFlowVizOpen] = useState(false);
 
   const formatTime = (hours: number) => {
     const h = Math.floor(hours);
@@ -268,6 +272,241 @@ export default function Dashboard({ state }: DashboardProps) {
           </div>
         </div>
       )}
+
+      {/* Physics Equations Panel */}
+      <div className="space-y-2 border-t border-[#2d3748] pt-4 relative z-10">
+        <button
+          onClick={() => setEquationsOpen(!equationsOpen)}
+          className="w-full flex items-center justify-between text-sm font-bold text-[#e2e8f0] uppercase tracking-wider"
+        >
+          <span className="flex items-center gap-2">
+            <Calculator className="w-4 h-4 text-[#00ff88]" />
+            Równania Fizyczne
+          </span>
+          <span className="text-[#00ff88]">{equationsOpen ? '▼' : '▶'}</span>
+        </button>
+
+        {equationsOpen && (
+          <div className="border border-[#2d3748] bg-[#0a0e14] p-3 space-y-2 text-[10px] font-mono">
+            {/* Solar Power Equation */}
+            <div className="border-b border-[#2d3748] pb-2">
+              <div className="text-[#00ff88] font-bold mb-1">Moc Słoneczna:</div>
+              <div className="text-[#e2e8f0]">
+                P = P_max × η × Sun × cos(θ)
+              </div>
+              <div className="text-[#718096] mt-1">
+                = {solar.maxPower.toFixed(1)} kW × {solar.efficiency.toFixed(2)} × {((currentTime >= 6 && currentTime <= 18) ? Math.sin(Math.PI * (currentTime - 6) / 12) : 0).toFixed(2)} × {Math.cos((solar.panelAngle ?? 30) * Math.PI / 180).toFixed(3)}
+                = <span className="text-[#00ff88]">{solar.currentPower.toFixed(2)} kW</span>
+              </div>
+            </div>
+
+            {/* Battery SoC Equation */}
+            <div className="border-b border-[#2d3748] pb-2">
+              <div className="text-[#00ff88] font-bold mb-1">Stan Naładowania Baterii:</div>
+              <div className="text-[#e2e8f0]">
+                SoC(t) = SoC(t-1) + (ΔE / C) × 100%
+              </div>
+              <div className="text-[#718096] mt-1">
+                C = {battery.capacity.toFixed(1)} kWh, Aktualne SoC = <span className="text-[#00ff88]">{battery.stateOfCharge.toFixed(1)}%</span>
+              </div>
+            </div>
+
+            {/* Current Calculation */}
+            <div className="border-b border-[#2d3748] pb-2">
+              <div className="text-[#00ff88] font-bold mb-1">Prąd:</div>
+              <div className="text-[#e2e8f0]">
+                I = P / V
+              </div>
+              <div className="text-[#718096] mt-1">
+                = {consumption.totalPower.toFixed(2)} kW / {(system?.voltage ?? 240)} V
+                = <span className="text-[#00ff88]">{calculateCurrent(consumption.totalPower, system?.voltage ?? 240).toFixed(2)} A</span>
+              </div>
+            </div>
+
+            {/* Wire Loss */}
+            <div className="border-b border-[#2d3748] pb-2">
+              <div className="text-[#00ff88] font-bold mb-1">Straty w Przewodach (Joule):</div>
+              <div className="text-[#e2e8f0]">
+                P_loss = I² × R
+              </div>
+              <div className="text-[#718096] mt-1">
+                = ({calculateCurrent(consumption.totalPower, system?.voltage ?? 240).toFixed(2)} A)² × 0.02 Ω
+                = <span className="text-[#00ff88]">{losses.wireLosses.total.toFixed(3)} kW</span>
+              </div>
+            </div>
+
+            {/* Power Equation */}
+            <div className="border-b border-[#2d3748] pb-2">
+              <div className="text-[#00ff88] font-bold mb-1">Moc:</div>
+              <div className="text-[#e2e8f0]">
+                P = V × I
+              </div>
+              <div className="text-[#718096] mt-1">
+                = {(system?.voltage ?? 240)} V × {calculateCurrent(consumption.totalPower, system?.voltage ?? 240).toFixed(2)} A
+                = <span className="text-[#00ff88]">{consumption.totalPower.toFixed(2)} kW</span>
+              </div>
+            </div>
+
+            {/* Energy Conservation */}
+            <div className="border-b border-[#2d3748] pb-2">
+              <div className="text-[#00ff88] font-bold mb-1">Zachowanie Energii:</div>
+              <div className="text-[#e2e8f0]">
+                E_in = E_out + E_stored
+              </div>
+              <div className="text-[#718096] mt-1">
+                Solar: {solar.currentPower.toFixed(2)} kW + Grid: {grid.importing ? Math.abs(grid.currentFlow).toFixed(2) : '0.00'} kW
+                = Consumption: {consumption.totalPower.toFixed(2)} kW + Battery: {battery.charging ? battery.chargingRate.toFixed(2) : '0.00'} kW + Losses: {losses.totalLosses.toFixed(2)} kW
+              </div>
+              <div className="text-[#718096] mt-1">
+                Bilans = <span className={`${Math.abs((solar.currentPower + (grid.importing ? Math.abs(grid.currentFlow) : 0)) - (consumption.totalPower + (battery.charging ? battery.chargingRate : 0) + losses.totalLosses)) < 0.1 ? 'text-[#00ff88]' : 'text-[#ff6347]'}`}>
+                  {((solar.currentPower + (grid.importing ? Math.abs(grid.currentFlow) : 0)) - (consumption.totalPower + (battery.charging ? battery.chargingRate : 0) + losses.totalLosses)).toFixed(3)} kW
+                </span>
+              </div>
+            </div>
+
+            {/* Temperature Effect */}
+            <div className="border-b border-[#2d3748] pb-2">
+              <div className="text-[#00ff88] font-bold mb-1">Wpływ Temperatury:</div>
+              <div className="text-[#e2e8f0]">
+                ΔP = P × α × (T - T_base)
+              </div>
+              <div className="text-[#718096] mt-1">
+                T = {calculateTemperature(currentTime).toFixed(1)}°C, α = -0.004/°C
+              </div>
+              <div className="text-[#718096]">
+                Strata temp = <span className="text-[#00ff88]">{losses.temperatureLosses.solar.toFixed(3)} kW</span>
+              </div>
+            </div>
+
+            {/* System Efficiency */}
+            <div>
+              <div className="text-[#00ff88] font-bold mb-1">Sprawność Systemu:</div>
+              <div className="text-[#e2e8f0]">
+                η = (E_out / E_in) × 100%
+              </div>
+              <div className="text-[#718096] mt-1">
+                = ({consumption.totalPower.toFixed(2)} / {(solar.currentPower + (grid.importing ? Math.abs(grid.currentFlow) : 0)).toFixed(2)}) × 100%
+                = <span className="text-[#00ff88]">
+                  {(solar.currentPower + (grid.importing ? Math.abs(grid.currentFlow) : 0)) > 0
+                    ? ((consumption.totalPower / (solar.currentPower + (grid.importing ? Math.abs(grid.currentFlow) : 0))) * 100).toFixed(1)
+                    : '0.0'}%
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Energy Flow Visualization */}
+      <div className="space-y-2 border-t border-[#2d3748] pt-4 relative z-10">
+        <button
+          onClick={() => setFlowVizOpen(!flowVizOpen)}
+          className="w-full flex items-center justify-between text-sm font-bold text-[#e2e8f0] uppercase tracking-wider"
+        >
+          <span className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-[#00ff88]" />
+            Przepływ Energii
+          </span>
+          <span className="text-[#00ff88]">{flowVizOpen ? '▼' : '▶'}</span>
+        </button>
+
+        {flowVizOpen && (
+          <div className="border border-[#2d3748] bg-[#0a0e14] p-3 font-mono text-[10px]">
+            {/* Solar Flow */}
+            <div className="mb-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[#FFD700] font-bold">Solar</span>
+                <div className="flex-1 bg-[#2d3748] h-3 overflow-hidden">
+                  <div
+                    className="h-full bg-[#FFD700]"
+                    style={{ width: `${solar.maxPower > 0 ? (solar.currentPower / solar.maxPower) * 100 : 0}%` }}
+                  />
+                </div>
+                <span className="text-[#FFD700] tabular-nums w-16 text-right">{solar.currentPower.toFixed(2)} kW</span>
+              </div>
+            </div>
+
+            {/* Battery Flow */}
+            <div className="mb-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[#00BFFF] font-bold">Bateria</span>
+                <div className="flex-1 bg-[#2d3748] h-3 overflow-hidden">
+                  <div
+                    className="h-full bg-[#00BFFF]"
+                    style={{ width: `${(battery.stateOfCharge / 100) * 100}%` }}
+                  />
+                </div>
+                <span className="text-[#00BFFF] tabular-nums w-16 text-right">{battery.stateOfCharge.toFixed(0)}%</span>
+              </div>
+              <div className="text-[#718096] pl-16 text-[9px]">
+                {battery.charging ? '↓ Ładowanie' : battery.chargingRate > 0 ? '↑ Rozładowanie' : '○ Bezczynny'}: {battery.chargingRate.toFixed(2)} kW
+              </div>
+            </div>
+
+            {/* Grid Flow */}
+            <div className="mb-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[#FF6347] font-bold">Sieć</span>
+                <div className="flex-1 bg-[#2d3748] h-3 overflow-hidden">
+                  <div
+                    className="h-full bg-[#FF6347]"
+                    style={{ width: `${grid.importing || grid.exporting ? Math.min(100, (Math.abs(grid.currentFlow) / 5) * 100) : 0}%` }}
+                  />
+                </div>
+                <span className="text-[#FF6347] tabular-nums w-16 text-right">{Math.abs(grid.currentFlow).toFixed(2)} kW</span>
+              </div>
+              <div className="text-[#718096] pl-16 text-[9px]">
+                {grid.importing ? '↓ Import' : grid.exporting ? '↑ Eksport' : '○ Brak'}</div>
+            </div>
+
+            {/* Consumption Flow */}
+            <div className="mb-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[#e2e8f0] font-bold">Zużycie</span>
+                <div className="flex-1 bg-[#2d3748] h-3 overflow-hidden">
+                  <div
+                    className="h-full bg-[#00ff88]"
+                    style={{ width: `${solar.maxPower > 0 ? (consumption.totalPower / solar.maxPower) * 100 : 0}%` }}
+                  />
+                </div>
+                <span className="text-[#00ff88] tabular-nums w-16 text-right">{consumption.totalPower.toFixed(2)} kW</span>
+              </div>
+              <div className="text-[#718096] pl-16 text-[9px]">
+                Aktywne: {consumption.appliances.filter(a => a.isOn).length}/{consumption.appliances.length} urządzenia
+              </div>
+            </div>
+
+            {/* Losses Flow */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[#ff6b35] font-bold">Straty</span>
+                <div className="flex-1 bg-[#2d3748] h-3 overflow-hidden">
+                  <div
+                    className="h-full bg-[#ff6b35]"
+                    style={{ width: `${solar.currentPower > 0 ? (losses.totalLosses / solar.currentPower) * 100 : 0}%` }}
+                  />
+                </div>
+                <span className="text-[#ff6b35] tabular-nums w-16 text-right">{losses.totalLosses.toFixed(3)} kW</span>
+              </div>
+              <div className="text-[#718096] pl-16 text-[9px]">
+                Przewody: {losses.wireLosses.total.toFixed(3)} | Inwerter: {losses.inverterLoss.toFixed(3)} kW
+              </div>
+            </div>
+
+            {/* ASCII Flow Diagram */}
+            <div className="mt-4 border-t border-[#2d3748] pt-3 text-[9px] leading-tight">
+              <div className="text-[#718096] mb-2">Schemat przepływu:</div>
+              <pre className="text-[#e2e8f0]">
+{`Solar [${solar.currentPower.toFixed(1)}kW] ──┬─→ Bateria [${battery.chargingRate.toFixed(1)}kW]
+                    ├─→ Dom     [${consumption.totalPower.toFixed(1)}kW]
+                    ├─→ Sieć    [${grid.exporting ? Math.abs(grid.currentFlow).toFixed(1) : '0.0'}kW]
+                    └─→ Straty  [${losses.totalLosses.toFixed(1)}kW]
+${grid.importing ? `Sieć [${Math.abs(grid.currentFlow).toFixed(1)}kW] ───────────→ Dom` : ''}`}
+              </pre>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Energy Balance */}
       <div className="border-2 border-[#2d3748] bg-[#0a0e14] p-4 relative z-10">

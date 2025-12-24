@@ -19,6 +19,8 @@ export interface SolarSystem {
   panelAngle: number;          // degrees - Panel tilt angle
   panelCount: number;          // Number of solar panels
   powerPerPanel: number;       // Watts per panel
+  irradianceOverride: number | null; // W/m² - Manual sun intensity override (null = auto)
+  area: number;                // m² - Total panel area
 }
 
 export interface BatterySystem {
@@ -31,6 +33,11 @@ export interface BatterySystem {
   chargeEfficiency: number;    // 0-1 - Charging efficiency
   dischargeEfficiency: number; // 0-1 - Discharging efficiency
   maxChargeRate: number;       // kW - Maximum charge rate (C-rate)
+  internalResistance: number;  // Ω - Battery internal resistance
+  depthOfDischarge: number;    // % - Current DoD (0-100%)
+  cRate: number;               // Current C-rate (power/capacity)
+  minSoC: number;              // % - Minimum state of charge limit
+  maxSoC: number;              // % - Maximum state of charge limit
 }
 
 export interface GridConnection {
@@ -54,6 +61,7 @@ export interface EnergyLosses {
   batteryLosses: {
     charging: number;          // kW - Loss during charging
     discharging: number;       // kW - Loss during discharging
+    resistive: number;         // kW - I²R loss from internal resistance
   };
   temperatureLosses: {
     solar: number;             // kW - Solar panel temp derating
@@ -67,6 +75,13 @@ export interface EnergyStatistics {
   costSavings: number;         // $ - Money saved
   co2Saved: number;            // kg - CO2 emissions avoided
   efficiency: number;          // % - Overall system efficiency
+}
+
+export interface SystemState {
+  voltage: number;             // V - System voltage (120/240/480)
+  wireGauge: string;           // Wire gauge (10AWG/8AWG/6AWG)
+  totalEfficiency: number;     // % - Total system efficiency
+  energyBalance: number;       // kW - Energy balance error (Ein - Eout - Estored)
 }
 
 export interface PowerConsumption {
@@ -88,6 +103,7 @@ export interface EnergySystemState {
   grid: GridConnection;
   statistics: EnergyStatistics;
   losses: EnergyLosses;        // System energy losses
+  system: SystemState;         // System-level parameters
 }
 
 export interface ApplianceState {

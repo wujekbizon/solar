@@ -1,8 +1,8 @@
 'use client';
 
-import { Clock, Play, Pause, CloudSun, Sun, Cloud, Moon, Home, RotateCcw, Zap } from 'lucide-react';
+import { Clock, Play, Pause, CloudSun, Sun, Cloud, Moon, Home, RotateCcw, Zap, Settings } from 'lucide-react';
 import type { ApplianceState, WeatherCondition } from '@/types/energy';
-import ThemeToggle from './ThemeToggle';
+import { useState } from 'react';
 
 interface ControlsProps {
   currentTime: number;
@@ -12,14 +12,35 @@ interface ControlsProps {
   appliances: ApplianceState[];
   solarPanelCount: number;
   solarPowerPerPanel: number;
+  solarPanelAngle: number;
+  solarEfficiency: number;
+  solarIrradianceOverride: number | null;
+  batteryCapacity: number;
+  batteryInternalResistance: number;
+  batteryMinSoC: number;
+  batteryMaxSoC: number;
+  batteryCRate: number;
+  batteryDoD: number;
+  systemVoltage: number;
+  wireGauge: string;
+  currentPower: number;
+  totalEfficiency: number;
   onTimeChange: (time: number) => void;
   onTimeSpeedChange: (speed: number) => void;
   onTogglePause: () => void;
   onWeatherChange: (weather: WeatherCondition) => void;
   onToggleAppliance: (applianceId: string) => void;
+  onApplianceDetailsClick: (applianceId: string) => void;
   onReset: () => void;
   onSolarPanelCountChange: (count: number) => void;
   onSolarPanelPowerChange: (watts: number) => void;
+  onSolarPanelAngleChange: (angle: number) => void;
+  onSolarEfficiencyChange: (eff: number) => void;
+  onIrradianceOverrideChange: (irr: number | null) => void;
+  onBatteryInternalResistanceChange: (r: number) => void;
+  onMinMaxSoCChange: (min: number, max: number) => void;
+  onSystemVoltageChange: (v: number) => void;
+  onWireGaugeChange: (gauge: string) => void;
 }
 
 export default function Controls({
@@ -30,15 +51,37 @@ export default function Controls({
   appliances,
   solarPanelCount,
   solarPowerPerPanel,
+  solarPanelAngle,
+  solarEfficiency,
+  solarIrradianceOverride,
+  batteryCapacity,
+  batteryInternalResistance,
+  batteryMinSoC,
+  batteryMaxSoC,
+  batteryCRate,
+  batteryDoD,
+  systemVoltage,
+  wireGauge,
+  currentPower,
+  totalEfficiency,
   onTimeChange,
   onTimeSpeedChange,
   onTogglePause,
   onWeatherChange,
   onToggleAppliance,
+  onApplianceDetailsClick,
   onReset,
   onSolarPanelCountChange,
   onSolarPanelPowerChange,
+  onSolarPanelAngleChange,
+  onSolarEfficiencyChange,
+  onIrradianceOverrideChange,
+  onBatteryInternalResistanceChange,
+  onMinMaxSoCChange,
+  onSystemVoltageChange,
+  onWireGaugeChange,
 }: ControlsProps) {
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const formatTime = (hours: number) => {
     const h = Math.floor(hours);
     const m = Math.floor((hours - h) * 60);
@@ -53,7 +96,7 @@ export default function Controls({
   ];
 
   return (
-    <div className="bg-[#141920] border-2 border-[#2d3748] rounded-none shadow-lg p-6 space-y-6 font-mono relative overflow-hidden">
+    <div className="bg-[#141920] border-2 border-[#2d3748] rounded-none shadow-lg p-4 space-y-4 font-mono relative overflow-hidden">
       {/* Grid background overlay */}
       <div
         className="absolute inset-0 opacity-20 pointer-events-none"
@@ -66,14 +109,9 @@ export default function Controls({
         }}
       />
 
-      {/* Theme Toggle */}
-      <div className="absolute top-4 right-4 z-20">
-        <ThemeToggle />
-      </div>
-
       {/* Time Controls */}
-      <div className="space-y-3 relative z-10">
-        <h3 className="text-sm font-bold text-[#e2e8f0] uppercase tracking-wider flex items-center gap-2">
+      <div className="space-y-2 relative z-10">
+        <h3 className="text-xs font-bold text-[#e2e8f0] uppercase tracking-wider flex items-center gap-2">
           <Clock className="w-4 h-4 text-[#00ff88]" />
           Sterowanie Czasem
         </h3>
@@ -81,10 +119,10 @@ export default function Controls({
         {/* Time Display and Slider */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-2xl font-bold text-[#00ff88] tabular-nums">{formatTime(currentTime)}</span>
+            <span className="text-xl font-bold text-[#00ff88] tabular-nums">{formatTime(currentTime)}</span>
             <button
               onClick={onTogglePause}
-              className={`px-4 py-2 border-2 font-semibold flex items-center gap-2 transition-all uppercase tracking-wider ${
+              className={`px-3 py-1.5 border-2 font-semibold flex items-center gap-2 transition-all uppercase tracking-wider ${
                 isPaused
                   ? 'border-[#00ff88] bg-[#0a0e14] text-[#00ff88] hover:bg-[#00ff88] hover:text-[#0a0e14]'
                   : 'border-[#ff6b35] bg-[#0a0e14] text-[#ff6b35] hover:bg-[#ff6b35] hover:text-[#0a0e14]'
@@ -107,7 +145,7 @@ export default function Controls({
             onChange={(e) => onTimeChange(parseFloat(e.target.value))}
             className="w-full h-2 bg-[#2d3748] appearance-none cursor-pointer"
           />
-          <div className="flex justify-between text-xs text-[#718096] uppercase tracking-wider">
+          <div className="flex justify-between text-[10px] text-[#718096] uppercase tracking-wider">
             <span>00:00</span>
             <span>06:00</span>
             <span>12:00</span>
@@ -118,13 +156,13 @@ export default function Controls({
 
         {/* Speed Controls */}
         <div className="space-y-2">
-          <label className="text-xs font-bold text-[#718096] uppercase tracking-wider">Prędkość Symulacji</label>
+          <label className="text-[10px] font-bold text-[#718096] uppercase tracking-wider">Prędkość Symulacji</label>
           <div className="grid grid-cols-4 gap-2">
             {speedOptions.map((option) => (
               <button
                 key={option.value}
                 onClick={() => onTimeSpeedChange(option.value)}
-                className={`py-2 px-3 border-2 font-semibold transition-all uppercase tracking-wider ${
+                className={`py-1.5 px-3 border-2 font-semibold transition-all uppercase tracking-wider ${
                   timeSpeed === option.value
                     ? 'border-[#00ff88] bg-[#00ff88] text-[#0a0e14]'
                     : 'border-[#2d3748] bg-[#0a0e14] text-[#e2e8f0] hover:border-[#00ff88]'
@@ -138,8 +176,8 @@ export default function Controls({
       </div>
 
       {/* Weather Controls */}
-      <div className="space-y-3 border-t border-[#2d3748] pt-4 relative z-10">
-        <h3 className="text-sm font-bold text-[#e2e8f0] uppercase tracking-wider flex items-center gap-2">
+      <div className="space-y-2 border-t border-[#2d3748] pt-4 relative z-10">
+        <h3 className="text-xs font-bold text-[#e2e8f0] uppercase tracking-wider flex items-center gap-2">
           <CloudSun className="w-4 h-4 text-[#00ff88]" />
           Pogoda
         </h3>
@@ -148,18 +186,18 @@ export default function Controls({
             <button
               key={w}
               onClick={() => onWeatherChange(w)}
-              className={`py-2 px-3 border-2 font-semibold uppercase transition-all flex items-center justify-center gap-1 ${
+              className={`py-1.5 px-3 border-2 text-sm font-semibold transition-all flex items-center justify-center gap-1 ${
                 weather === w
                   ? 'border-[#00ff88] bg-[#00ff88] text-[#0a0e14]'
                   : 'border-[#2d3748] bg-[#0a0e14] text-[#e2e8f0] hover:border-[#00ff88]'
               }`}
             >
               {w === 'sunny' ? (
-                <><Sun className="w-4 h-4" /> słonecznie</>
+                <><Sun className="w-4 h-4" /> Dzień </>
               ) : w === 'cloudy' ? (
-                <><Cloud className="w-4 h-4" /> pochmurnie</>
+                <><Cloud className="w-4 h-4" /> Chmury</>
               ) : (
-                <><Moon className="w-4 h-4" /> noc</>
+                <><Moon className="w-4 h-4" /> Noc</>
               )}
             </button>
           ))}
@@ -167,39 +205,39 @@ export default function Controls({
       </div>
 
       {/* Solar Panel Configuration */}
-      <div className="bg-[#141920] border-2 border-[#2d3748] rounded-lg p-4">
-        <h3 className="text-[#00ff88] font-mono uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Zap className="w-5 h-5" />
+      <div className="bg-[#141920] border-2 border-[#2d3748] rounded-lg p-3">
+        <h3 className="text-white text-sm font-mono uppercase tracking-wider mb-3 flex items-center gap-2">
+          <Zap className="w-4 h-4" />
           Panele Słoneczne
         </h3>
 
         {/* Panel Count Slider */}
-        <div className="mb-4">
+        <div className="mb-3">
           <div className="flex justify-between items-center mb-2">
-            <label className="text-[#e2e8f0] font-mono text-sm">Liczba paneli</label>
-            <span className="text-[#00ff88] font-mono font-bold">{solarPanelCount ?? 56}</span>
+            <label className="text-[#e2e8f0] font-mono text-[11px]">Liczba paneli</label>
+            <span className="text-[#00ff88] font-mono font-bold">{solarPanelCount ?? 90}</span>
           </div>
           <input
             type="range"
             min="0"
-            max="56"
+            max="90"
             step="1"
-            value={solarPanelCount ?? 56}
+            value={solarPanelCount ?? 90}
             onChange={(e) => onSolarPanelCountChange(Number(e.target.value))}
             className="w-full"
           />
         </div>
 
         {/* Power Per Panel Dropdown */}
-        <div className="mb-4">
-          <label className="text-[#e2e8f0] font-mono text-sm mb-2 block">Moc na panel</label>
+        <div className="mb-3">
+          <label className="text-[#e2e8f0] font-mono text-[10px] mb-2 block">Moc na panel</label>
           <div className="grid grid-cols-5 gap-2">
             {[100, 200, 300, 400, 500].map((watts) => (
               <button
                 key={watts}
                 onClick={() => onSolarPanelPowerChange(watts)}
-                className={`px-2 py-1 rounded font-mono text-xs transition-all ${
-                  (solarPowerPerPanel ?? 250) === watts
+                className={`px-2 py-1 rounded font-mono text-[10px] transition-all ${
+                  (solarPowerPerPanel ?? 300) === watts
                     ? 'bg-[#00ff88] text-[#0a0e14] border-2 border-[#00ff88]'
                     : 'bg-[#0a0e14] text-[#718096] border-2 border-[#2d3748] hover:border-[#00ff88]'
                 }`}
@@ -211,58 +249,277 @@ export default function Controls({
         </div>
 
         {/* Total System Power Display */}
-        <div className="bg-[#0a0e14] border border-[#2d3748] rounded p-3">
-          <div className="text-[#718096] font-mono text-xs mb-1">Całkowita moc systemu</div>
-          <div className="text-[#00ff88] font-mono text-2xl font-bold">
-            {(((solarPanelCount ?? 56) * (solarPowerPerPanel ?? 250)) / 1000).toFixed(1)} kW
+        <div className="bg-[#0a0e14] border border-[#2d3748] rounded p-2">
+          <div className="text-[#718096] font-mono text-[10px] mb-1">Całkowita moc systemu</div>
+          <div className="text-[#00ff88] font-mono text-xl font-bold">
+            {(((solarPanelCount ?? 56) * (solarPowerPerPanel ?? 300)) / 1000).toFixed(1)} kW
           </div>
         </div>
       </div>
 
       {/* Appliance Controls */}
-      <div className="space-y-3 border-t border-[#2d3748] pt-4 relative z-10">
-        <h3 className="text-sm font-bold text-[#e2e8f0] uppercase tracking-wider flex items-center gap-2">
+      <div className="space-y-2 border-t border-[#2d3748] pt-4 relative z-10">
+        <h3 className="text-xs font-bold text-[#e2e8f0] uppercase tracking-wider flex items-center gap-2">
           <Home className="w-4 h-4 text-[#00ff88]" />
           Urządzenia
         </h3>
-        <div className="space-y-2 max-h-64 overflow-y-auto">
+        <div className="space-y-1.5 max-h-48 overflow-y-auto">
           {appliances.map((appliance) => (
             <div
               key={appliance.id}
-              className={`flex items-center justify-between p-3 border-2 transition-all ${
+              className={`flex items-center justify-between p-2 border-2 transition-all ${
                 appliance.isOn ? 'border-[#00ff88] bg-[#0a0e14]' : 'border-[#2d3748] bg-[#0a0e14]'
               }`}
             >
               <div className="flex-1">
-                <p className="font-medium text-[#e2e8f0] uppercase text-xs tracking-wider">{appliance.name}</p>
-                <p className="text-xs text-[#718096] tabular-nums">
+                <p className="font-medium text-[#e2e8f0] uppercase text-[10px] tracking-wider">{appliance.name}</p>
+                <p className="text-[10px] text-[#718096] tabular-nums">
                   {appliance.powerRating.toFixed(2)} kW
                   {appliance.alwaysOn && <span className="ml-2 text-[#00ff88]">(Zawsze Włączone)</span>}
                 </p>
               </div>
-              <button
-                onClick={() => onToggleAppliance(appliance.id)}
-                disabled={appliance.alwaysOn}
-                className={`px-4 py-2 border-2 font-semibold transition-all uppercase tracking-wider ${
-                  appliance.alwaysOn
-                    ? 'border-[#2d3748] bg-[#0a0e14] text-[#718096] cursor-not-allowed'
-                    : appliance.isOn
-                    ? 'border-[#ff6b35] bg-[#0a0e14] text-[#ff6b35] hover:bg-[#ff6b35] hover:text-[#0a0e14]'
-                    : 'border-[#00ff88] bg-[#0a0e14] text-[#00ff88] hover:bg-[#00ff88] hover:text-[#0a0e14]'
-                }`}
-              >
-                {appliance.isOn ? 'Wyłącz' : 'Włącz'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onToggleAppliance(appliance.id)}
+                  disabled={appliance.alwaysOn}
+                  className={`px-3 py-1.5 border-2 font-semibold transition-all uppercase tracking-wider text-xs ${
+                    appliance.alwaysOn
+                      ? 'border-[#2d3748] bg-[#0a0e14] text-[#718096] cursor-not-allowed'
+                      : appliance.isOn
+                      ? 'border-[#ff6b35] bg-[#0a0e14] text-[#ff6b35] hover:bg-[#ff6b35] hover:text-[#0a0e14]'
+                      : 'border-[#00ff88] bg-[#0a0e14] text-[#00ff88] hover:bg-[#00ff88] hover:text-[#0a0e14]'
+                  }`}
+                >
+                  {appliance.isOn ? 'Wyłącz' : 'Włącz'}
+                </button>
+                <button
+                  onClick={() => onApplianceDetailsClick(appliance.id)}
+                  className="px-2 py-1.5 border-2 border-[#2d3748] bg-[#0a0e14] text-[#00ff88] hover:border-[#00ff88] font-semibold transition-all text-xs"
+                  title="Szczegóły"
+                >
+                  ℹ️
+                </button>
+              </div>
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Advanced Physics Controls */}
+      <div className="border-t border-[#2d3748] pt-4 relative z-10">
+        <button
+          onClick={() => setAdvancedOpen(!advancedOpen)}
+          className="w-full flex items-center justify-between text-xs font-bold text-[#e2e8f0] uppercase tracking-wider mb-2"
+        >
+          <span className="flex items-center gap-2">
+            <Settings className="w-4 h-4 text-[#00ff88]" />
+            Zaawansowana Fizyka
+          </span>
+          <span className="text-[#00ff88]">{advancedOpen ? '▼' : '▶'}</span>
+        </button>
+
+        {advancedOpen && (
+          <div className="space-y-3 bg-[#0a0e14] border border-[#2d3748] rounded p-3">
+            {/* Solar Physics */}
+            <div className="space-y-2">
+              <h4 className="text-[#00ff88] text-[10px] font-bold uppercase">Panel Słoneczny</h4>
+
+              {/* Panel Angle */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <label className="text-[10px] text-[#e2e8f0]">Kąt nachylenia (°)</label>
+                  <span className="text-[10px] text-[#00ff88]">{solarPanelAngle}° | cos={Math.cos(solarPanelAngle * Math.PI / 180).toFixed(3)}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="90"
+                  step="1"
+                  value={solarPanelAngle}
+                  onChange={(e) => onSolarPanelAngleChange(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Efficiency */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <label className="text-[10px] text-[#e2e8f0]">Sprawność (%)</label>
+                  <span className="text-[10px] text-[#00ff88]">{(solarEfficiency * 100).toFixed(1)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.10"
+                  max="0.25"
+                  step="0.01"
+                  value={solarEfficiency}
+                  onChange={(e) => onSolarEfficiencyChange(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Irradiance Override */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <label className="text-[10px] text-[#e2e8f0]">Natężenie (W/m²)</label>
+                  <span className="text-[10px] text-[#00ff88]">{solarIrradianceOverride ?? 'Auto'}</span>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="1000"
+                    value={solarIrradianceOverride ?? ''}
+                    onChange={(e) => onIrradianceOverrideChange(e.target.value ? Number(e.target.value) : null)}
+                    className="flex-1 bg-[#0a0e14] border border-[#2d3748] text-[10px] text-[#e2e8f0] px-2 py-1"
+                    placeholder="Auto"
+                  />
+                  <button
+                    onClick={() => onIrradianceOverrideChange(null)}
+                    className="px-2 py-1 text-[10px] border border-[#2d3748] text-[#718096] hover:border-[#00ff88]"
+                  >
+                    Auto
+                  </button>
+                </div>
+              </div>
+
+              <div className="text-[10px] text-[#718096]">Wsp. temp: -0.4%/°C powyżej 25°C</div>
+            </div>
+
+            {/* Battery Physics */}
+            <div className="space-y-2 border-t border-[#2d3748] pt-2">
+              <h4 className="text-[#00ff88] text-[10px] font-bold uppercase">Bateria</h4>
+
+              {/* Internal Resistance */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <label className="text-[10px] text-[#e2e8f0]">Opór wewn. (Ω)</label>
+                  <span className="text-[10px] text-[#00ff88]">{batteryInternalResistance.toFixed(3)}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.01"
+                  max="0.1"
+                  step="0.01"
+                  value={batteryInternalResistance}
+                  onChange={(e) => onBatteryInternalResistanceChange(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* C-rate & DoD Display */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-[#141920] border border-[#2d3748] rounded p-2">
+                  <div className="text-[10px] text-[#718096]">C-rate</div>
+                  <div className="text-[10px] text-[#00ff88] font-bold">{batteryCRate.toFixed(2)}C</div>
+                </div>
+                <div className="bg-[#141920] border border-[#2d3748] rounded p-2">
+                  <div className="text-[10px] text-[#718096]">DoD</div>
+                  <div className="text-[10px] text-[#00ff88] font-bold">{batteryDoD.toFixed(1)}%</div>
+                </div>
+              </div>
+
+              {/* Min/Max SoC */}
+              <div>
+                <div className="flex justify-between mb-1">
+                  <label className="text-[10px] text-[#e2e8f0]">Min SoC (%)</label>
+                  <span className="text-[10px] text-[#00ff88]">{batteryMinSoC}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="10"
+                  max="30"
+                  step="1"
+                  value={batteryMinSoC}
+                  onChange={(e) => onMinMaxSoCChange(Number(e.target.value), batteryMaxSoC)}
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-1">
+                  <label className="text-[10px] text-[#e2e8f0]">Max SoC (%)</label>
+                  <span className="text-[10px] text-[#00ff88]">{batteryMaxSoC}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="85"
+                  max="100"
+                  step="1"
+                  value={batteryMaxSoC}
+                  onChange={(e) => onMinMaxSoCChange(batteryMinSoC, Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            {/* System Voltage & Current */}
+            <div className="space-y-2 border-t border-[#2d3748] pt-2">
+              <h4 className="text-[#00ff88] text-[10px] font-bold uppercase">System</h4>
+
+              {/* Voltage Selector */}
+              <div>
+                <label className="text-[10px] text-[#e2e8f0] mb-1 block">Napięcie systemu</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[120, 240, 480].map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => onSystemVoltageChange(v)}
+                      className={`py-1 px-2 text-[10px] border-2 font-semibold transition-all ${
+                        systemVoltage === v
+                          ? 'border-[#00ff88] bg-[#00ff88] text-[#0a0e14]'
+                          : 'border-[#2d3748] bg-[#0a0e14] text-[#e2e8f0] hover:border-[#00ff88]'
+                      }`}
+                    >
+                      {v}V
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Wire Gauge */}
+              <div>
+                <label className="text-[10px] text-[#e2e8f0] mb-1 block">Grubość przewodu</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['10AWG', '8AWG', '6AWG'].map((g) => (
+                    <button
+                      key={g}
+                      onClick={() => onWireGaugeChange(g)}
+                      className={`py-1 px-2 text-[10px] border-2 font-semibold transition-all ${
+                        wireGauge === g
+                          ? 'border-[#00ff88] bg-[#00ff88] text-[#0a0e14]'
+                          : 'border-[#2d3748] bg-[#0a0e14] text-[#e2e8f0] hover:border-[#00ff88]'
+                      }`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Current & Power Display */}
+              <div className="bg-[#141920] border border-[#2d3748] rounded p-2">
+                <div className="text-[10px] text-[#718096] mb-1">I = P / V</div>
+                <div className="text-[10px] text-[#00ff88] font-mono">
+                  I = {currentPower.toFixed(2)} kW / {systemVoltage} V = {(currentPower * 1000 / systemVoltage).toFixed(2)} A
+                </div>
+              </div>
+
+              {/* System Efficiency */}
+              <div className="bg-[#141920] border border-[#2d3748] rounded p-2">
+                <div className="text-[10px] text-[#718096]">Całkowita sprawność systemu</div>
+                <div className="text-[10px] text-[#00ff88] font-bold text-lg">{totalEfficiency.toFixed(1)}%</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Reset Button */}
       <div className="border-t border-[#2d3748] pt-4 relative z-10">
         <button
           onClick={onReset}
-          className="w-full py-3 border-2 border-[#2d3748] bg-[#0a0e14] text-[#e2e8f0] hover:border-[#ff6b35] hover:bg-[#ff6b35] hover:text-[#0a0e14] font-semibold transition-all flex items-center justify-center gap-2 uppercase tracking-wider"
+          className="w-full py-1.5 border-2 border-[#2d3748] bg-[#0a0e14] text-[#e2e8f0] hover:border-[#ff6b35] hover:bg-[#ff6b35] hover:text-[#0a0e14] font-semibold transition-all flex items-center justify-center gap-2 uppercase tracking-wider"
         >
           <RotateCcw className="w-5 h-5" />
           Resetuj Symulację

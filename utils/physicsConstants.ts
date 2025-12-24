@@ -7,7 +7,7 @@ export const PHYSICS_CONSTANTS = {
   // Solar Panel Parameters
   SOLAR_PANEL_EFFICIENCY: 0.18,      // 18% typical efficiency
   SOLAR_MAX_POWER: 5.0,               // kW - 5kW system (typical residential)
-  SOLAR_PANEL_COUNT: 56,              // Number of panels (4x7 grid per slope, 2 slopes)
+  SOLAR_PANEL_COUNT: 90,              // Number of panels (5x9 grid per slope, 2 slopes)
 
   // Battery Parameters
   BATTERY_CAPACITY: 13.5,             // kWh - Tesla Powerwall capacity
@@ -36,6 +36,25 @@ export const PHYSICS_CONSTANTS = {
     solarBaseTemp: 25,                // °C for solar
     batteryOptimalTemp: 20,           // °C for battery
   },
+
+  // Advanced Solar Parameters
+  SOLAR_ANGLE_MIN: 0,                 // degrees - minimum tilt
+  SOLAR_ANGLE_MAX: 90,                // degrees - maximum tilt
+  PANEL_AREA_M2: 1.7,                 // m² - standard panel size (400W panel ~1.7m²)
+
+  // System Voltage Options
+  SYSTEM_VOLTAGE_OPTIONS: [120, 240, 480] as const, // Volts - Available voltage options
+
+  // Wire Gauge Resistance (Ohms) - per AWG size
+  WIRE_GAUGE_RESISTANCE: {
+    '10AWG': 0.01,                    // Ω - 10 gauge wire
+    '8AWG': 0.006,                    // Ω - 8 gauge wire
+    '6AWG': 0.004,                    // Ω - 6 gauge wire
+  },
+
+  // Advanced Battery Parameters
+  BATTERY_C_RATE_MAX: 1.0,            // 1C = discharge full capacity in 1 hour
+  BATTERY_DOD_MAX: 0.8,               // 80% max depth of discharge for longevity
 
   // Grid Parameters
   GRID_IMPORT_RATE: 0.13,             // $/kWh - Typical electricity cost

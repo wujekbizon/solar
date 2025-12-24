@@ -20,32 +20,45 @@ const COLOR_SOLAR = 0xFFD700;
 const COLOR_BATTERY = 0x00BFFF;
 const COLOR_GRID = 0xFF6347;
 
+// Shed position (central hub)
+const SHED_POSITION: Vector3D = { x: 10, y: 1.5, z: 0 };
+
 /**
  * Calculate active particle routes based on current energy flow
+ * All routes now go through the shed as central hub
  */
 export function calculateParticleRoutes(
   energyState: EnergySystemState
 ): ParticleRoute[] {
   const routes: ParticleRoute[] = [];
 
-  // Solar panel position (on roof)
-  const solarPosition: Vector3D = { x: 0, y: 4.8, z: 0 };
+  // Solar panel position (at ridge of gabled roof)
+  // Ridge height = houseHeight (12) + ridgeHeight (16/2 * tan(30°) = 4.6)
+  const solarPosition: Vector3D = { x: 0, y: 16.6, z: 0 };
 
   // Battery position
   const batteryPosition: Vector3D = { x: -5, y: 0.75, z: -4 };
 
-  // Grid connection point (at scene edge)
-  const gridPosition: Vector3D = { x: 10, y: 0, z: 0 };
-
-  // House center (for appliances aggregate)
-  const houseCenter: Vector3D = { x: 0, y: 2, z: 0 };
+  // Grid connection point (farther from shed)
+  const gridPosition: Vector3D = { x: 15, y: 0, z: 0 };
 
   const { solar, battery, grid, consumption } = energyState;
 
-  // Route 1: Solar → Battery (when battery is charging)
-  if (battery.charging && solar.currentPower > 0) {
+  // Route 1: Solar → Shed (always when generating)
+  if (solar.currentPower > 0) {
     routes.push({
       source: solarPosition,
+      destination: SHED_POSITION,
+      color: COLOR_SOLAR,
+      power: solar.currentPower,
+      type: 'solar',
+    });
+  }
+
+  // Route 2: Shed → Battery (when charging)
+  if (battery.charging && solar.currentPower > 0) {
+    routes.push({
+      source: SHED_POSITION,
       destination: batteryPosition,
       color: COLOR_SOLAR,
       power: battery.chargingRate,
@@ -53,55 +66,65 @@ export function calculateParticleRoutes(
     });
   }
 
-  // Route 2: Solar → House (when solar covers consumption)
-  if (solar.currentPower > 0 && consumption.totalPower > 0) {
-    const solarToHouse = Math.min(
-      solar.currentPower - (battery.charging ? battery.chargingRate : 0),
-      consumption.totalPower
-    );
-    if (solarToHouse > 0) {
-      routes.push({
-        source: solarPosition,
-        destination: houseCenter,
-        color: COLOR_SOLAR,
-        power: solarToHouse,
-        type: 'solar',
-      });
-    }
-  }
-
-  // Route 3: Solar → Grid (when exporting)
-  if (grid.exporting && solar.currentPower > 0) {
-    routes.push({
-      source: solarPosition,
-      destination: gridPosition,
-      color: COLOR_SOLAR,
-      power: grid.currentFlow,
-      type: 'solar',
-    });
-  }
-
-  // Route 4: Battery → House (when battery is discharging)
-  if (!battery.charging && battery.chargingRate > 0 && consumption.totalPower > 0) {
+  // Route 3: Battery → Shed (when discharging)
+  if (!battery.charging && battery.chargingRate > 0) {
     routes.push({
       source: batteryPosition,
-      destination: houseCenter,
+      destination: SHED_POSITION,
       color: COLOR_BATTERY,
       power: battery.chargingRate,
       type: 'battery',
     });
   }
 
-  // Route 5: Grid → House (when importing)
-  if (grid.importing && consumption.totalPower > 0) {
+  // Route 4: Grid → Shed (when importing)
+  if (grid.importing) {
     routes.push({
       source: gridPosition,
-      destination: houseCenter,
+      destination: SHED_POSITION,
       color: COLOR_GRID,
       power: Math.abs(grid.currentFlow),
       type: 'grid',
     });
   }
+
+  // Route 5: Shed → Grid (when exporting)
+  if (grid.exporting) {
+    routes.push({
+      source: SHED_POSITION,
+      destination: gridPosition,
+      color: COLOR_SOLAR,
+      power: Math.abs(grid.currentFlow),
+      type: 'solar',
+    });
+  }
+
+  // Routes 6+: Shed → Each active appliance
+  consumption.appliances.forEach((appliance) => {
+    if (appliance.isOn && appliance.powerRating > 0) {
+      const power = appliance.powerRating;
+
+      // Determine color: solar (yellow) if available, battery (blue) if discharging, grid (red) if importing
+      let color = COLOR_GRID; // Default to grid
+      let type: 'solar' | 'battery' | 'grid' = 'grid';
+
+      if (solar.currentPower > 0) {
+        color = COLOR_SOLAR;
+        type = 'solar';
+      } else if (!battery.charging && battery.chargingRate > 0) {
+        color = COLOR_BATTERY;
+        type = 'battery';
+      }
+
+      routes.push({
+        source: SHED_POSITION,
+        destination: appliance.position,
+        color,
+        power,
+        type,
+      });
+    }
+  });
 
   return routes;
 }

@@ -7,30 +7,34 @@ import { PHYSICS_CONSTANTS } from './physicsConstants';
 
 /**
  * Calculate solar power generation based on time of day
- * P_solar = P_max × Efficiency × Sun_Intensity
+ * P_solar = P_max × Efficiency × Sun_Intensity × Angle_Effect
  *
  * @param time - Current time in hours (0-24)
  * @param weather - Weather condition
  * @param efficiency - Panel efficiency (0-1)
  * @param maxPower - Maximum solar system power (kW)
+ * @param panelAngle - Panel angle in degrees from horizontal (0-90)
+ * @param irradianceOverride - Manual irradiance override in W/m² (null = auto)
  * @returns Power generated in kW
  */
 export function calculateSolarPower(
   time: number,
   weather: 'sunny' | 'cloudy' | 'night',
   efficiency: number,
-  maxPower: number
+  maxPower: number,
+  panelAngle: number = 30,
+  irradianceOverride: number | null = null
 ): number {
-  if (weather === 'night') return 0;
+  if (weather === 'night' && !irradianceOverride) return 0;
 
-  const sunIntensity = calculateSunIntensity(time);
-  const weatherMultiplier = weather === 'cloudy' ? 0.3 : 1.0;
+  const sunIntensity = calculateSunIntensity(time, weather, irradianceOverride);
+  const angleEffect = calculatePanelAngleEffect(panelAngle);
 
   const power =
     maxPower *
     efficiency *
     sunIntensity *
-    weatherMultiplier;
+    angleEffect;
 
   return Math.max(0, power);
 }
@@ -38,11 +42,23 @@ export function calculateSolarPower(
 /**
  * Calculate sun intensity based on time of day
  * Uses sinusoidal function: Intensity(t) = max(0, sin(π × (t - 6) / 12))
+ * Can be overridden with manual irradiance value
  *
  * @param time - Current time in hours (0-24)
+ * @param weather - Weather condition
+ * @param irradianceOverride - Manual irradiance override in W/m² (null = auto)
  * @returns Sun intensity (0-1)
  */
-export function calculateSunIntensity(time: number): number {
+export function calculateSunIntensity(
+  time: number,
+  weather: 'sunny' | 'cloudy' | 'night' = 'sunny',
+  irradianceOverride: number | null = null
+): number {
+  // Manual override - convert W/m² to 0-1 intensity (1000 W/m² = max)
+  if (irradianceOverride !== null) {
+    return Math.max(0, Math.min(1, irradianceOverride / 1000));
+  }
+
   const { SUNRISE_HOUR, SUNSET_HOUR } = PHYSICS_CONSTANTS;
 
   if (time < SUNRISE_HOUR || time > SUNSET_HOUR) {
@@ -51,7 +67,12 @@ export function calculateSunIntensity(time: number): number {
 
   // Sinusoidal curve peaking at noon
   const dayProgress = (time - SUNRISE_HOUR) / (SUNSET_HOUR - SUNRISE_HOUR);
-  const intensity = Math.sin(Math.PI * dayProgress);
+  let intensity = Math.sin(Math.PI * dayProgress);
+
+  // Apply weather modifier
+  if (weather === 'cloudy') {
+    intensity *= 0.3;
+  }
 
   return Math.max(0, Math.min(1, intensity));
 }
@@ -67,6 +88,8 @@ export function calculateSunIntensity(time: number): number {
  * @param chargeEfficiency - Charging efficiency (0-1)
  * @param dischargeEfficiency - Discharging efficiency (0-1)
  * @param temperature - Current temperature (°C)
+ * @param minSoC - Minimum state of charge (%)
+ * @param maxSoC - Maximum state of charge (%)
  * @returns New state of charge (%)
  */
 export function calculateBatterySoC(
@@ -76,7 +99,9 @@ export function calculateBatterySoC(
   capacity: number = PHYSICS_CONSTANTS.BATTERY_CAPACITY,
   chargeEfficiency: number = PHYSICS_CONSTANTS.BATTERY_CHARGE_EFFICIENCY,
   dischargeEfficiency: number = PHYSICS_CONSTANTS.BATTERY_DISCHARGE_EFFICIENCY,
-  temperature: number = 20
+  temperature: number = 20,
+  minSoC: number = 10,
+  maxSoC: number = 100
 ): number {
   // Apply temperature effects
   const tempEffCharge = calculateBatteryTempEfficiency(chargeEfficiency, temperature);
@@ -93,10 +118,7 @@ export function calculateBatterySoC(
   const socChange = (energyChange / capacity) * 100;
   const newSoC = currentSoC + socChange;
 
-  return Math.max(
-    PHYSICS_CONSTANTS.BATTERY_MIN_SOC,
-    Math.min(PHYSICS_CONSTANTS.BATTERY_MAX_SOC, newSoC)
-  );
+  return Math.max(minSoC, Math.min(maxSoC, newSoC));
 }
 
 /**
@@ -317,4 +339,81 @@ export function calculateBatteryTempEfficiency(
   const tempDiff = Math.abs(temp - PHYSICS_CONSTANTS.TEMPERATURE.batteryOptimalTemp);
   const derating = (tempDiff / 10) * PHYSICS_CONSTANTS.TEMPERATURE.batteryTempCoefficient;
   return Math.max(0.7, baseEfficiency * (1 + derating)); // Min 70% efficiency
+}
+
+/**
+ * Calculate panel angle effect on power output
+ * Effect = cos(θ) where θ is angle from horizontal
+ *
+ * @param angle - Panel angle in degrees from horizontal (0-90)
+ * @returns Cosine factor (0-1)
+ */
+export function calculatePanelAngleEffect(angle: number): number {
+  return Math.cos((angle * Math.PI) / 180);
+}
+
+/**
+ * Calculate electrical current from power and voltage
+ * I = P / V
+ *
+ * @param power - Power in kW
+ * @param voltage - Voltage in V
+ * @returns Current in amperes
+ */
+export function calculateCurrent(power: number, voltage: number): number {
+  if (voltage === 0) return 0;
+  return (power * 1000) / voltage; // Convert kW to W, then I = P/V
+}
+
+/**
+ * Calculate battery C-rate (charge/discharge rate relative to capacity)
+ * C-rate = Power / Capacity
+ *
+ * @param power - Current power flow (kW)
+ * @param capacity - Battery capacity (kWh)
+ * @returns C-rate (1C = discharge full capacity in 1 hour)
+ */
+export function calculateCRate(power: number, capacity: number): number {
+  if (capacity === 0) return 0;
+  return Math.abs(power) / capacity;
+}
+
+/**
+ * Calculate depth of discharge
+ * DoD = ((Capacity - CurrentCharge) / Capacity) × 100%
+ *
+ * @param currentCharge - Current charge level (kWh)
+ * @param capacity - Total battery capacity (kWh)
+ * @returns Depth of discharge percentage (0-100%)
+ */
+export function calculateDoD(currentCharge: number, capacity: number): number {
+  if (capacity === 0) return 0;
+  return ((capacity - currentCharge) / capacity) * 100;
+}
+
+/**
+ * Calculate Joule heating (I²R losses) in wires
+ * P_loss = I² × R
+ *
+ * @param current - Current in amperes
+ * @param resistance - Resistance in ohms
+ * @returns Power loss in kW
+ */
+export function calculateJouleHeating(current: number, resistance: number): number {
+  return (current * current * resistance) / 1000; // Convert W to kW
+}
+
+/**
+ * Calculate battery internal resistance power loss
+ * P_loss = I²R (Joule heating inside battery)
+ *
+ * @param current - Battery current in amperes
+ * @param internalResistance - Battery internal resistance in ohms
+ * @returns Power loss in kW
+ */
+export function calculateBatteryResistiveLoss(
+  current: number,
+  internalResistance: number
+): number {
+  return (current * current * internalResistance) / 1000; // Convert W to kW
 }

@@ -14,6 +14,7 @@ import {
   calculateWireLoss,
   calculateTemperature,
   calculateSolarTempLoss,
+  calculateBatteryResistiveLoss,
 } from '@/utils/energyCalculations';
 
 const INITIAL_APPLIANCES: ApplianceState[] = [
@@ -23,7 +24,7 @@ const INITIAL_APPLIANCES: ApplianceState[] = [
     type: 'light',
     powerRating: PHYSICS_CONSTANTS.APPLIANCE_POWER.light,
     isOn: false,
-    position: { x: 2, y: 1, z: 2 },
+    position: { x: 0, y: 2.8, z: 3 },
     alwaysOn: false,
   },
   {
@@ -32,7 +33,7 @@ const INITIAL_APPLIANCES: ApplianceState[] = [
     type: 'light',
     powerRating: PHYSICS_CONSTANTS.APPLIANCE_POWER.light,
     isOn: false,
-    position: { x: -2, y: 1, z: 2 },
+    position: { x: -5, y: 2.8, z: 5 },
     alwaysOn: false,
   },
   {
@@ -41,7 +42,7 @@ const INITIAL_APPLIANCES: ApplianceState[] = [
     type: 'refrigerator',
     powerRating: PHYSICS_CONSTANTS.APPLIANCE_POWER.refrigerator,
     isOn: true,
-    position: { x: -3, y: 0.5, z: 1 },
+    position: { x: -6, y: 1.2, z: 5 },
     alwaysOn: true,
   },
   {
@@ -50,7 +51,7 @@ const INITIAL_APPLIANCES: ApplianceState[] = [
     type: 'ac',
     powerRating: PHYSICS_CONSTANTS.APPLIANCE_POWER.ac,
     isOn: false,
-    position: { x: 0, y: 2, z: -3 },
+    position: { x: 6, y: 2.5, z: -5 },
     alwaysOn: false,
   },
   {
@@ -59,7 +60,7 @@ const INITIAL_APPLIANCES: ApplianceState[] = [
     type: 'tv',
     powerRating: PHYSICS_CONSTANTS.APPLIANCE_POWER.tv,
     isOn: false,
-    position: { x: 3, y: 1, z: -1 },
+    position: { x: 0, y: 1.5, z: 6 },
     alwaysOn: false,
   },
   {
@@ -68,13 +69,13 @@ const INITIAL_APPLIANCES: ApplianceState[] = [
     type: 'computer',
     powerRating: PHYSICS_CONSTANTS.APPLIANCE_POWER.computer,
     isOn: false,
-    position: { x: -2, y: 0.8, z: -2 },
+    position: { x: 5, y: 0.8, z: 5 },
     alwaysOn: false,
   },
 ];
 
 const INITIAL_STATE: EnergySystemState = {
-  currentTime: 12, // Start at noon
+  currentTime: 6,
   timeSpeed: 1,
   weather: 'sunny',
   isPaused: false,
@@ -87,12 +88,14 @@ const INITIAL_STATE: EnergySystemState = {
     totalGenerated: 0,
     panelAngle: 30,
     panelCount: 56,
-    powerPerPanel: 250,
+    powerPerPanel: 300,
+    irradianceOverride: null,
+    area: 56 * PHYSICS_CONSTANTS.PANEL_AREA_M2,
   },
 
   battery: {
     capacity: PHYSICS_CONSTANTS.BATTERY_CAPACITY,
-    currentCharge: PHYSICS_CONSTANTS.BATTERY_CAPACITY * 0.5, // Start at 50%
+    currentCharge: PHYSICS_CONSTANTS.BATTERY_CAPACITY * 0.5,
     stateOfCharge: 50,
     charging: false,
     chargingRate: 0,
@@ -100,6 +103,11 @@ const INITIAL_STATE: EnergySystemState = {
     chargeEfficiency: PHYSICS_CONSTANTS.BATTERY_CHARGE_EFFICIENCY,
     dischargeEfficiency: PHYSICS_CONSTANTS.BATTERY_DISCHARGE_EFFICIENCY,
     maxChargeRate: PHYSICS_CONSTANTS.BATTERY_MAX_CHARGE_RATE,
+    internalResistance: 0.05,
+    depthOfDischarge: 50,
+    cRate: 0,
+    minSoC: 20,
+    maxSoC: 95,
   },
 
   consumption: {
@@ -128,9 +136,16 @@ const INITIAL_STATE: EnergySystemState = {
   losses: {
     wireLosses: { solarToBattery: 0, batteryToHouse: 0, gridToHouse: 0, total: 0 },
     inverterLoss: 0,
-    batteryLosses: { charging: 0, discharging: 0 },
+    batteryLosses: { charging: 0, discharging: 0, resistive: 0 },
     temperatureLosses: { solar: 0, battery: 0 },
     totalLosses: 0,
+  },
+
+  system: {
+    voltage: PHYSICS_CONSTANTS.SYSTEM_VOLTAGE,
+    wireGauge: '8AWG',
+    totalEfficiency: 0,
+    energyBalance: 0,
   },
 };
 
@@ -148,6 +163,13 @@ interface EnergyStore {
   resetSimulation: () => void;
   setSolarPanelCount: (count: number) => void;
   setSolarPanelPower: (watts: number) => void;
+  setSolarPanelAngle: (angle: number) => void;
+  setSolarEfficiency: (efficiency: number) => void;
+  setIrradianceOverride: (irradiance: number | null) => void;
+  setBatteryInternalResistance: (resistance: number) => void;
+  setSystemVoltage: (voltage: number) => void;
+  setWireGauge: (gauge: string) => void;
+  setMinMaxSoC: (min: number, max: number) => void;
 }
 
 export const useEnergyStore = create<EnergyStore>()(
@@ -164,78 +186,85 @@ export const useEnergyStore = create<EnergyStore>()(
         const now = Date.now();
         const deltaTimeMs = now - lastUpdate;
 
-        // Convert to hours (scaled by simulation speed)
         const visualDeltaTimeHours = (deltaTimeMs / 1000 / 3600) * prevState.timeSpeed;
 
-        // 100x speedup for energy accumulation (demo purposes)
         const ACCUMULATION_MULTIPLIER = 100;
         const accumulationDeltaTimeHours = visualDeltaTimeHours * ACCUMULATION_MULTIPLIER;
 
-        // Update time (use visual delta for day/night cycle)
         let newTime = prevState.currentTime + visualDeltaTimeHours;
         if (newTime >= 24) newTime -= 24;
 
-        // Only auto-calculate weather if not manually controlled by user
+        // ✅ FIX: Only auto-calculate weather if not manually controlled
+        // This was the bug - it was recalculating every frame!
         const weather = prevState.isManualWeatherControl
           ? prevState.weather
           : getWeatherFromTime(newTime);
 
-        // Calculate solar power
-        const solarPower = calculateSolarPower(newTime, weather, prevState.solar.efficiency, prevState.solar.maxPower);
+        const solarPower = calculateSolarPower(
+          newTime,
+          weather,
+          prevState.solar.efficiency,
+          prevState.solar.maxPower,
+          prevState.solar.panelAngle ?? 30,
+          prevState.solar.irradianceOverride
+        );
 
-        // Calculate total consumption
         const totalConsumption = calculateTotalConsumption(prevState.consumption.appliances);
 
-        // Calculate battery power needed
         const batteryPowerFlow = calculateBatteryPower(
           solarPower,
           totalConsumption,
           prevState.battery.stateOfCharge
         );
 
-        // Calculate current temperature
         const currentTemp = calculateTemperature(newTime);
 
-        // Update battery state of charge (use accumulation delta for faster changes)
         const newSoC = calculateBatterySoC(
           prevState.battery.stateOfCharge,
-          -batteryPowerFlow, // Negative because positive batteryPowerFlow means discharging
+          -batteryPowerFlow,
           accumulationDeltaTimeHours,
           prevState.battery.capacity,
           prevState.battery.chargeEfficiency,
           prevState.battery.dischargeEfficiency,
-          currentTemp
+          currentTemp,
+          prevState.battery.minSoC ?? 10,
+          prevState.battery.maxSoC ?? 100
         );
 
-        // Calculate grid power
         const gridPower = calculateGridPower(solarPower, batteryPowerFlow, totalConsumption);
 
-        // Calculate energy losses
-        // Wire losses
+        // Wire gauge-based resistance calculations
+        const baseResistance = PHYSICS_CONSTANTS.WIRE_GAUGE_RESISTANCE[prevState.system.wireGauge as keyof typeof PHYSICS_CONSTANTS.WIRE_GAUGE_RESISTANCE] ?? 0.006;
+        const systemVoltage = prevState.system.voltage ?? 240;
+
         const wireLossSolar = solarPower > 0 && batteryPowerFlow < 0
-          ? calculateWireLoss(Math.abs(batteryPowerFlow), PHYSICS_CONSTANTS.WIRE_RESISTANCE.solarToBattery)
+          ? calculateWireLoss(Math.abs(batteryPowerFlow), baseResistance * 3.3, systemVoltage)
           : 0;
         const wireLossBattery = batteryPowerFlow > 0
-          ? calculateWireLoss(batteryPowerFlow, PHYSICS_CONSTANTS.WIRE_RESISTANCE.batteryToHouse)
+          ? calculateWireLoss(batteryPowerFlow, baseResistance * 5, systemVoltage)
           : 0;
         const wireLossGrid = gridPower > 0
-          ? calculateWireLoss(gridPower, PHYSICS_CONSTANTS.WIRE_RESISTANCE.gridToHouse)
+          ? calculateWireLoss(gridPower, baseResistance * 8.3, systemVoltage)
           : 0;
         const totalWireLoss = wireLossSolar + wireLossBattery + wireLossGrid;
 
-        // Inverter loss (DC→AC for house consumption)
         const inverterLoss = totalConsumption * (1 - PHYSICS_CONSTANTS.INVERTER_EFFICIENCY);
 
-        // Solar temperature loss
         const solarTempLoss = calculateSolarTempLoss(solarPower, currentTemp);
 
-        // Battery losses (from charge/discharge inefficiency)
         const batteryChargeLoss = batteryPowerFlow < 0
           ? Math.abs(batteryPowerFlow) * (1 - PHYSICS_CONSTANTS.BATTERY_CHARGE_EFFICIENCY)
           : 0;
         const batteryDischargeLoss = batteryPowerFlow > 0
           ? batteryPowerFlow * (1 - PHYSICS_CONSTANTS.BATTERY_DISCHARGE_EFFICIENCY)
           : 0;
+
+        // Battery internal resistance loss (I²R)
+        const batteryCurrent = Math.abs(batteryPowerFlow * 1000) / systemVoltage; // Convert kW to W, then I = P/V
+        const batteryResistiveLoss = calculateBatteryResistiveLoss(
+          batteryCurrent,
+          prevState.battery.internalResistance ?? 0.05
+        );
 
         const losses = {
           wireLosses: {
@@ -248,21 +277,20 @@ export const useEnergyStore = create<EnergyStore>()(
           batteryLosses: {
             charging: batteryChargeLoss,
             discharging: batteryDischargeLoss,
+            resistive: batteryResistiveLoss,
           },
           temperatureLosses: {
             solar: solarTempLoss,
-            battery: 0, // Included in battery efficiency adjustment
+            battery: 0,
           },
-          totalLosses: totalWireLoss + inverterLoss + batteryChargeLoss + batteryDischargeLoss + solarTempLoss,
+          totalLosses: totalWireLoss + inverterLoss + batteryChargeLoss + batteryDischargeLoss + batteryResistiveLoss + solarTempLoss,
         };
 
-        // Update totals (use accumulation delta for faster visible changes)
         const solarGenerated = solarPower * accumulationDeltaTimeHours;
         const consumedEnergy = totalConsumption * accumulationDeltaTimeHours;
         const gridImported = gridPower > 0 ? gridPower * accumulationDeltaTimeHours : 0;
         const gridExported = gridPower < 0 ? -gridPower * accumulationDeltaTimeHours : 0;
 
-        // Calculate statistics
         const totalSolarUsed = prevState.solar.totalGenerated;
         const costSavings = calculateCostSavings(
           totalSolarUsed,
@@ -275,7 +303,7 @@ export const useEnergyStore = create<EnergyStore>()(
           state: {
             ...prevState,
             currentTime: newTime,
-            weather,
+            weather, // ✅ This now respects isManualWeatherControl
 
             solar: {
               ...prevState.solar,
@@ -343,7 +371,13 @@ export const useEnergyStore = create<EnergyStore>()(
 
       setTime: (time: number) => {
         set((prev) => ({
-          state: { ...prev.state, currentTime: time },
+          state: { 
+            ...prev.state, 
+            currentTime: time,
+            // ✅ FIX: Reset manual weather control when time is changed manually
+            // This allows auto weather to work again after manual time change
+            isManualWeatherControl: false,
+          },
           lastUpdate: Date.now(),
         }));
       },
@@ -356,8 +390,25 @@ export const useEnergyStore = create<EnergyStore>()(
       },
 
       setWeather: (weather: WeatherCondition) => {
+        console.log('🌤️ Setting weather to:', weather); // Debug log
+
+        // Auto-adjust time based on weather
+        let newTime = get().state.currentTime;
+        if (weather === 'sunny') {
+          newTime = 12; // Noon for sunny
+        } else if (weather === 'night') {
+          newTime = 0; // Midnight for night
+        } else if (weather === 'cloudy') {
+          newTime = 14; // Afternoon for cloudy
+        }
+
         set((prev) => ({
-          state: { ...prev.state, weather, isManualWeatherControl: true },
+          state: {
+            ...prev.state,
+            currentTime: newTime,
+            weather,
+            isManualWeatherControl: true // ✅ This flag prevents auto-override
+          },
         }));
       },
 
@@ -393,12 +444,96 @@ export const useEnergyStore = create<EnergyStore>()(
           },
         }));
       },
+
+      setSolarPanelAngle: (angle: number) => {
+        set((prev) => ({
+          state: {
+            ...prev.state,
+            solar: {
+              ...prev.state.solar,
+              panelAngle: angle,
+            },
+          },
+        }));
+      },
+
+      setSolarEfficiency: (efficiency: number) => {
+        set((prev) => ({
+          state: {
+            ...prev.state,
+            solar: {
+              ...prev.state.solar,
+              efficiency,
+            },
+          },
+        }));
+      },
+
+      setIrradianceOverride: (irradiance: number | null) => {
+        set((prev) => ({
+          state: {
+            ...prev.state,
+            solar: {
+              ...prev.state.solar,
+              irradianceOverride: irradiance,
+            },
+          },
+        }));
+      },
+
+      setBatteryInternalResistance: (resistance: number) => {
+        set((prev) => ({
+          state: {
+            ...prev.state,
+            battery: {
+              ...prev.state.battery,
+              internalResistance: resistance,
+            },
+          },
+        }));
+      },
+
+      setSystemVoltage: (voltage: number) => {
+        set((prev) => ({
+          state: {
+            ...prev.state,
+            system: {
+              ...prev.state.system,
+              voltage,
+            },
+          },
+        }));
+      },
+
+      setWireGauge: (gauge: string) => {
+        set((prev) => ({
+          state: {
+            ...prev.state,
+            system: {
+              ...prev.state.system,
+              wireGauge: gauge,
+            },
+          },
+        }));
+      },
+
+      setMinMaxSoC: (min: number, max: number) => {
+        set((prev) => ({
+          state: {
+            ...prev.state,
+            battery: {
+              ...prev.state.battery,
+              minSoC: min,
+              maxSoC: max,
+            },
+          },
+        }));
+      },
     }),
     {
       name: 'energy-simulation-storage',
       partialize: (state) => ({
         state: state.state,
-        // Don't persist lastUpdate - it should reset on page load
       }),
     }
   )
