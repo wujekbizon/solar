@@ -189,6 +189,27 @@ function createAppliances(
         color = 0x1E1E1E;
         break;
       }
+      case 'electric_car': {
+        // No mesh - using dedicated Car model from Car.tsx
+        // Create label only
+        if (labelsMap) {
+          const label = createLabel({
+            id: appliance.id,
+            name: appliance.name,
+            powerRating: appliance.powerRating,
+            isOn: appliance.isOn
+          });
+          label.position.set(
+            appliance.position.x,
+            appliance.position.y + 3.5, // Higher above car
+            appliance.position.z
+          );
+          label.userData = { applianceId: appliance.id };
+          scene.add(label);
+          labelsMap.set(appliance.id, label);
+        }
+        return; // Skip mesh creation for electric_car
+      }
       default:
         geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
         color = 0x808080;

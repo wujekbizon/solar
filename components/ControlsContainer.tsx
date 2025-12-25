@@ -58,6 +58,7 @@ const appliances = useEnergyStore((store) => store.state.consumption.appliances)
   const setMinMaxSoC = useEnergyStore((store) => store.setMinMaxSoC);
   const setSystemVoltage = useEnergyStore((store) => store.setSystemVoltage);
   const setWireGauge = useEnergyStore((store) => store.setWireGauge);
+  const setBatteryConfig = useEnergyStore((store) => store.setBatteryConfig);
 
   return (
     <div className="relative">
@@ -98,6 +99,7 @@ const appliances = useEnergyStore((store) => store.state.consumption.appliances)
         onMinMaxSoCChange={setMinMaxSoC}
         onSystemVoltageChange={setSystemVoltage}
         onWireGaugeChange={setWireGauge}
+        onBatteryCapacityChange={setBatteryConfig}
       />
 
       {selectedApplianceId && (() => {

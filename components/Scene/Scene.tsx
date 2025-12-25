@@ -11,6 +11,8 @@ import { Shed } from './models/Shed';
 import { House } from './models/House';
 import { SolarPanels } from './models/SolarPanels';
 import { Appliances } from './models/Appliances';
+import { GridConnection } from './models/GridConnection';
+import { Car } from './models/Car';
 import { Environment } from './visualization/Environment';
 import { PowerLines } from './visualization/PowerLines';
 import { ParticleSystem, type ParticlesData } from './visualization/ParticleSystem';
@@ -32,7 +34,7 @@ export default function Scene({ energyState, onApplianceClick }: SceneProps) {
   const batteryRef = useRef<THREE.Mesh | null>(null);
   const appliancesRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const powerLinesRef = useRef<THREE.Group | null>(null);
-  const shedPositionRef = useRef<{ x: number; y: number; z: number }>({ x: 10, y: 1.5, z: 0 });
+  const shedPositionRef = useRef<{ x: number; y: number; z: number }>(POSITIONS.inverter);
   const labelsRef = useRef<Map<string, THREE.Sprite>>(new Map());
   const energyStateRef = useRef(energyState);
   const keysPressed = useRef<Set<string>>(new Set());
@@ -40,6 +42,13 @@ export default function Scene({ energyState, onApplianceClick }: SceneProps) {
   const rightMouseDown = useRef<boolean>(false);
   const particleSystemRef = useRef<THREE.Points | null>(null);
   const particlesRef = useRef<ParticlesData | null>(null);
+
+  // Determine battery scale based on capacity
+  const getBatteryScale = (capacity: number): number => {
+    if (capacity <= 13.5) return 1; // Small
+    if (capacity <= 40) return 1.5; // Medium
+    return 2; // Large
+  };
 
   useEffect(() => {
     energyStateRef.current = energyState;
@@ -74,7 +83,13 @@ export default function Scene({ energyState, onApplianceClick }: SceneProps) {
       <Ground sceneRef={sceneRef} />
       <House sceneRef={sceneRef} houseGroupRef={houseGroupRef} />
       <Shed sceneRef={sceneRef} shedPositionRef={shedPositionRef} />
-      <Battery sceneRef={sceneRef} batteryRef={batteryRef} />
+      <Battery
+        sceneRef={sceneRef}
+        batteryRef={batteryRef}
+        scale={getBatteryScale(energyState.battery.capacity)}
+      />
+      <GridConnection sceneRef={sceneRef} />
+      <Car sceneRef={sceneRef} position={POSITIONS.car} />
       <SolarPanels
         sceneRef={sceneRef}
         solarPanelsRef={solarPanelsRef}
@@ -95,7 +110,7 @@ export default function Scene({ energyState, onApplianceClick }: SceneProps) {
         appliances={energyState.consumption.appliances}
         batteryPosition={POSITIONS.battery}
         gridPosition={POSITIONS.grid}
-        shedPosition={POSITIONS.shed}
+        shedPosition={POSITIONS.inverter}
         importing={energyState.grid.importing}
         batteryChargingRate={energyState.battery.chargingRate}
         solarPower={energyState.solar.currentPower}

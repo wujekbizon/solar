@@ -56,6 +56,28 @@ export const PHYSICS_CONSTANTS = {
   BATTERY_C_RATE_MAX: 1.0,            // 1C = discharge full capacity in 1 hour
   BATTERY_DOD_MAX: 0.8,               // 80% max depth of discharge for longevity
 
+  // Battery Configuration Presets
+  BATTERY_CONFIGS: {
+    small: {
+      size: 'small' as const,
+      capacity: 13.5,                 // kWh - Tesla Powerwall
+      internalResistance: 0.05,       // Ω - Higher resistance, more losses
+      maxCRate: 1.0,                  // 1C - Can discharge full capacity in 1 hour
+    },
+    medium: {
+      size: 'medium' as const,
+      capacity: 40,                   // kWh - 3× Powerwall equivalent
+      internalResistance: 0.02,       // Ω - Lower resistance, better efficiency
+      maxCRate: 0.8,                  // 0.8C - Slightly conservative discharge
+    },
+    large: {
+      size: 'large' as const,
+      capacity: 100,                  // kWh - Commercial/large residential
+      internalResistance: 0.01,       // Ω - Best efficiency, lowest losses
+      maxCRate: 0.5,                  // 0.5C - Conservative discharge for longevity
+    },
+  },
+
   // Grid Parameters
   GRID_IMPORT_RATE: 0.13,             // $/kWh - Typical electricity cost
   GRID_EXPORT_RATE: 0.08,             // $/kWh - Typical feed-in tariff
@@ -82,6 +104,7 @@ export const PHYSICS_CONSTANTS = {
     washer: 1.2,                      // 1200W washing machine
     heater: 2.0,                      // 2kW space heater
     dishwasher: 1.8,                  // 1800W dishwasher
+    electric_car: 7.0,                // 7kW Level 2 home charger
   },
 
   // Particle System

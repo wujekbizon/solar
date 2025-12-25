@@ -21,6 +21,7 @@ export default function Dashboard({ state }: DashboardProps) {
   };
 
   const formatPower = (kw: number) => `${(kw ?? 0).toFixed(2)} kW`;
+  const formatWireLoss = (kw: number) => `${(kw ?? 0).toFixed(4)} kW`;
   const formatEnergy = (kwh: number) => {
     const val = kwh ?? 0;
     if (val < 0.1) return `${val.toFixed(3)} kWh`;
@@ -29,8 +30,8 @@ export default function Dashboard({ state }: DashboardProps) {
   const formatPercent = (percent: number) => `${(percent ?? 0).toFixed(1)}%`;
   const formatCurrency = (amount: number) => {
     const val = amount ?? 0;
-    if (val < 0.1) return `$${val.toFixed(3)}`;
-    return `$${val.toFixed(2)}`;
+    if (val < 0.1) return `${val.toFixed(3)} zł`;
+    return `${val.toFixed(2)} zł`;
   };
   const formatCO2 = (kg: number) => {
     const val = kg ?? 0;
@@ -53,7 +54,7 @@ export default function Dashboard({ state }: DashboardProps) {
       />
       {/* Header */}
       <div className="border-b border-[#2d3748] pb-4 relative z-10">
-        <h2 className="text-2xl font-bold text-[#e2e8f0] uppercase tracking-wider">Panel Energetyczny</h2>
+        <h2 className="text-lg font-bold text-[#e2e8f0] uppercase tracking-wider">Panel Energetyczny</h2>
         <div className="flex items-center gap-4 mt-2 text-sm">
           <span className="font-semibold text-[#00ff88] tabular-nums">Czas: {formatTime(currentTime)}</span>
           <span className="uppercase px-3 py-1 border border-[#2d3748] bg-[#0a0e14] text-[#e2e8f0]">
@@ -71,11 +72,11 @@ export default function Dashboard({ state }: DashboardProps) {
         <div className="grid grid-cols-2 gap-4">
           <div className="border border-[#2d3748] bg-[#0a0e14] p-3">
             <p className="text-xs text-[#718096] uppercase tracking-wider">Aktualna Moc</p>
-            <p className="text-2xl font-bold text-[#00ff88] tabular-nums">{formatPower(solar.currentPower)}</p>
+            <p className="text-lg font-bold font-mono text-[#00ff88] tabular-nums">{formatPower(solar.currentPower)}</p>
           </div>
           <div className="border border-[#2d3748] bg-[#0a0e14] p-3">
             <p className="text-xs text-[#718096] uppercase tracking-wider">Całkowicie Wygenerowane</p>
-            <p className="text-2xl font-bold text-[#00ff88] tabular-nums">{formatEnergy(solar.totalGenerated)}</p>
+            <p className="text-lg font-bold font-mono text-[#00ff88] tabular-nums">{formatEnergy(solar.totalGenerated)}</p>
           </div>
         </div>
       </div>
@@ -89,7 +90,7 @@ export default function Dashboard({ state }: DashboardProps) {
         <div className="border border-[#2d3748] bg-[#0a0e14] p-3 space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-xs text-[#718096] uppercase tracking-wider">Stan Naładowania</span>
-            <span className="text-2xl font-bold text-[#00ff88] tabular-nums">
+            <span className="text-lg font-bold font-mono text-[#00ff88] tabular-nums">
               {formatPercent(battery.stateOfCharge)}
             </span>
           </div>
@@ -135,11 +136,11 @@ export default function Dashboard({ state }: DashboardProps) {
         <div className="grid grid-cols-2 gap-4">
           <div className="border border-[#2d3748] bg-[#0a0e14] p-3">
             <p className="text-xs text-[#718096] uppercase tracking-wider">Aktualna Moc</p>
-            <p className="text-2xl font-bold text-[#00ff88] tabular-nums">{formatPower(consumption.totalPower)}</p>
+            <p className="text-lg font-bold font-mono text-[#00ff88] tabular-nums">{formatPower(consumption.totalPower)}</p>
           </div>
           <div className="border border-[#2d3748] bg-[#0a0e14] p-3">
             <p className="text-xs text-[#718096] uppercase tracking-wider">Całkowicie Zużyte</p>
-            <p className="text-2xl font-bold text-[#00ff88] tabular-nums">{formatEnergy(consumption.totalConsumed)}</p>
+            <p className="text-lg font-bold font-mono text-[#00ff88] tabular-nums">{formatEnergy(consumption.totalConsumed)}</p>
           </div>
         </div>
         <div className="text-xs text-[#718096] uppercase tracking-wider">
@@ -190,11 +191,11 @@ export default function Dashboard({ state }: DashboardProps) {
         <div className="grid grid-cols-2 gap-4">
           <div className="border border-[#2d3748] bg-[#0a0e14] p-3">
             <p className="text-xs text-[#718096] uppercase tracking-wider">Oszczędności Kosztów</p>
-            <p className="text-2xl font-bold text-[#00ff88] tabular-nums">{formatCurrency(statistics.costSavings)}</p>
+            <p className="text-lg font-bold font-mono text-[#00ff88] tabular-nums">{formatCurrency(statistics.costSavings)}</p>
           </div>
           <div className="border border-[#2d3748] bg-[#0a0e14] p-3">
             <p className="text-xs text-[#718096] uppercase tracking-wider">Zaoszczędzone CO₂</p>
-            <p className="text-2xl font-bold text-[#00ff88] tabular-nums">{formatCO2(statistics.co2Saved)}</p>
+            <p className="text-lg font-bold font-mono text-[#00ff88] tabular-nums">{formatCO2(statistics.co2Saved)}</p>
           </div>
         </div>
       </div>
@@ -207,23 +208,23 @@ export default function Dashboard({ state }: DashboardProps) {
             <div className="flex justify-between">
               <span className="text-[#718096]">Przewody:</span>
               <span className="text-[#e2e8f0] tabular-nums">
-                {formatPower(losses.wireLosses.total)}
+                {formatWireLoss(losses.wireLosses.total)}
                 <span className="text-[#718096] ml-1">
                   ({solar.currentPower > 0 ? ((losses.wireLosses.total / solar.currentPower) * 100).toFixed(1) : '0.0'}%)
                 </span>
               </span>
             </div>
-            <div className="flex justify-between pl-3 text-[10px]">
+            <div className="flex justify-between pl-3 text-xs">
               <span className="text-[#718096]">Solar→Bateria:</span>
-              <span className="text-[#718096] tabular-nums">{formatPower(losses.wireLosses.solarToBattery)}</span>
+              <span className="text-[#718096] tabular-nums">{formatWireLoss(losses.wireLosses.solarToBattery)}</span>
             </div>
-            <div className="flex justify-between pl-3 text-[10px]">
+            <div className="flex justify-between pl-3 text-xs">
               <span className="text-[#718096]">Bateria→Dom:</span>
-              <span className="text-[#718096] tabular-nums">{formatPower(losses.wireLosses.batteryToHouse)}</span>
+              <span className="text-[#718096] tabular-nums">{formatWireLoss(losses.wireLosses.batteryToHouse)}</span>
             </div>
-            <div className="flex justify-between pl-3 text-[10px]">
+            <div className="flex justify-between pl-3 text-xs">
               <span className="text-[#718096]">Sieć→Dom:</span>
-              <span className="text-[#718096] tabular-nums">{formatPower(losses.wireLosses.gridToHouse)}</span>
+              <span className="text-[#718096] tabular-nums">{formatWireLoss(losses.wireLosses.gridToHouse)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-[#718096]">Inwerter:</span>
@@ -243,11 +244,11 @@ export default function Dashboard({ state }: DashboardProps) {
                 </span>
               </span>
             </div>
-            <div className="flex justify-between pl-3 text-[10px]">
+            <div className="flex justify-between pl-3 text-xs">
               <span className="text-[#718096]">Ładowanie:</span>
               <span className="text-[#718096] tabular-nums">{formatPower(losses.batteryLosses.charging)}</span>
             </div>
-            <div className="flex justify-between pl-3 text-[10px]">
+            <div className="flex justify-between pl-3 text-xs">
               <span className="text-[#718096]">Rozładowanie:</span>
               <span className="text-[#718096] tabular-nums">{formatPower(losses.batteryLosses.discharging)}</span>
             </div>
@@ -287,7 +288,7 @@ export default function Dashboard({ state }: DashboardProps) {
         </button>
 
         {equationsOpen && (
-          <div className="border border-[#2d3748] bg-[#0a0e14] p-3 space-y-2 text-[10px] font-mono">
+          <div className="border border-[#2d3748] bg-[#0a0e14] p-3 space-y-2 text-xs font-mono">
             {/* Solar Power Equation */}
             <div className="border-b border-[#2d3748] pb-2">
               <div className="text-[#00ff88] font-bold mb-1">Moc Słoneczna:</div>
@@ -411,7 +412,7 @@ export default function Dashboard({ state }: DashboardProps) {
         </button>
 
         {flowVizOpen && (
-          <div className="border border-[#2d3748] bg-[#0a0e14] p-3 font-mono text-[10px]">
+          <div className="border border-[#2d3748] bg-[#0a0e14] p-3 font-mono text-xs">
             {/* Solar Flow */}
             <div className="mb-2">
               <div className="flex items-center gap-2 mb-1">
@@ -512,7 +513,7 @@ ${grid.importing ? `Sieć [${Math.abs(grid.currentFlow).toFixed(1)}kW] ───
       <div className="border-2 border-[#2d3748] bg-[#0a0e14] p-4 relative z-10">
         <div className="text-center">
           <p className="text-xs text-[#718096] uppercase tracking-wider mb-1">Przepływ Energii Netto</p>
-          <p className={`text-3xl font-bold tabular-nums ${
+          <p className={`text-lg font-bold font-mono tabular-nums ${
             statistics.netEnergy > 0 ? 'text-[#00ff88]' : statistics.netEnergy < 0 ? 'text-[#ff6b35]' : 'text-[#718096]'
           }`}>
             {statistics.netEnergy > 0 ? '+' : ''}{formatPower(statistics.netEnergy)}

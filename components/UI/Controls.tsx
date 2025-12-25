@@ -38,6 +38,7 @@ interface ControlsProps {
   onSolarEfficiencyChange: (eff: number) => void;
   onIrradianceOverrideChange: (irr: number | null) => void;
   onBatteryInternalResistanceChange: (r: number) => void;
+  onBatteryCapacityChange: (size: 'small' | 'medium' | 'large') => void;
   onMinMaxSoCChange: (min: number, max: number) => void;
   onSystemVoltageChange: (v: number) => void;
   onWireGaugeChange: (gauge: string) => void;
@@ -77,6 +78,7 @@ export default function Controls({
   onSolarEfficiencyChange,
   onIrradianceOverrideChange,
   onBatteryInternalResistanceChange,
+  onBatteryCapacityChange,
   onMinMaxSoCChange,
   onSystemVoltageChange,
   onWireGaugeChange,
@@ -119,7 +121,7 @@ export default function Controls({
         {/* Time Display and Slider */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-xl font-bold text-[#00ff88] tabular-nums">{formatTime(currentTime)}</span>
+            <span className="text-lg font-bold font-mono text-[#00ff88] tabular-nums">{formatTime(currentTime)}</span>
             <button
               onClick={onTogglePause}
               className={`px-3 py-1.5 border-2 font-semibold flex items-center gap-2 transition-all uppercase tracking-wider ${
@@ -145,7 +147,7 @@ export default function Controls({
             onChange={(e) => onTimeChange(parseFloat(e.target.value))}
             className="w-full h-2 bg-[#2d3748] appearance-none cursor-pointer"
           />
-          <div className="flex justify-between text-[10px] text-[#718096] uppercase tracking-wider">
+          <div className="flex justify-between text-xs text-[#718096] uppercase tracking-wider">
             <span>00:00</span>
             <span>06:00</span>
             <span>12:00</span>
@@ -156,7 +158,7 @@ export default function Controls({
 
         {/* Speed Controls */}
         <div className="space-y-2">
-          <label className="text-[10px] font-bold text-[#718096] uppercase tracking-wider">Prędkość Symulacji</label>
+          <label className="text-xs font-bold text-[#718096] uppercase tracking-wider">Prędkość Symulacji</label>
           <div className="grid grid-cols-4 gap-2">
             {speedOptions.map((option) => (
               <button
@@ -214,7 +216,7 @@ export default function Controls({
         {/* Panel Count Slider */}
         <div className="mb-3">
           <div className="flex justify-between items-center mb-2">
-            <label className="text-[#e2e8f0] font-mono text-[11px]">Liczba paneli</label>
+            <label className="text-[#e2e8f0] font-mono text-xs">Liczba paneli</label>
             <span className="text-[#00ff88] font-mono font-bold">{solarPanelCount ?? 90}</span>
           </div>
           <input
@@ -230,13 +232,13 @@ export default function Controls({
 
         {/* Power Per Panel Dropdown */}
         <div className="mb-3">
-          <label className="text-[#e2e8f0] font-mono text-[10px] mb-2 block">Moc na panel</label>
+          <label className="text-[#e2e8f0] font-mono text-xs mb-2 block">Moc na panel</label>
           <div className="grid grid-cols-5 gap-2">
             {[100, 200, 300, 400, 500].map((watts) => (
               <button
                 key={watts}
                 onClick={() => onSolarPanelPowerChange(watts)}
-                className={`px-2 py-1 rounded font-mono text-[10px] transition-all ${
+                className={`px-2 py-1 rounded font-mono text-xs transition-all ${
                   (solarPowerPerPanel ?? 300) === watts
                     ? 'bg-[#00ff88] text-[#0a0e14] border-2 border-[#00ff88]'
                     : 'bg-[#0a0e14] text-[#718096] border-2 border-[#2d3748] hover:border-[#00ff88]'
@@ -250,8 +252,8 @@ export default function Controls({
 
         {/* Total System Power Display */}
         <div className="bg-[#0a0e14] border border-[#2d3748] rounded p-2">
-          <div className="text-[#718096] font-mono text-[10px] mb-1">Całkowita moc systemu</div>
-          <div className="text-[#00ff88] font-mono text-xl font-bold">
+          <div className="text-[#718096] font-mono text-xs mb-1">Całkowita moc systemu</div>
+          <div className="text-[#00ff88] font-mono text-lg font-bold">
             {(((solarPanelCount ?? 56) * (solarPowerPerPanel ?? 300)) / 1000).toFixed(1)} kW
           </div>
         </div>
@@ -272,8 +274,8 @@ export default function Controls({
               }`}
             >
               <div className="flex-1">
-                <p className="font-medium text-[#e2e8f0] uppercase text-[10px] tracking-wider">{appliance.name}</p>
-                <p className="text-[10px] text-[#718096] tabular-nums">
+                <p className="font-medium text-[#e2e8f0] uppercase text-xs tracking-wider">{appliance.name}</p>
+                <p className="text-xs text-[#718096] tabular-nums font-mono">
                   {appliance.powerRating.toFixed(2)} kW
                   {appliance.alwaysOn && <span className="ml-2 text-[#00ff88]">(Zawsze Włączone)</span>}
                 </p>
@@ -322,13 +324,13 @@ export default function Controls({
           <div className="space-y-3 bg-[#0a0e14] border border-[#2d3748] rounded p-3">
             {/* Solar Physics */}
             <div className="space-y-2">
-              <h4 className="text-[#00ff88] text-[10px] font-bold uppercase">Panel Słoneczny</h4>
+              <h4 className="text-[#00ff88] text-xs font-bold uppercase">Panel Słoneczny</h4>
 
               {/* Panel Angle */}
               <div>
                 <div className="flex justify-between mb-1">
-                  <label className="text-[10px] text-[#e2e8f0]">Kąt nachylenia (°)</label>
-                  <span className="text-[10px] text-[#00ff88]">{solarPanelAngle}° | cos={Math.cos(solarPanelAngle * Math.PI / 180).toFixed(3)}</span>
+                  <label className="text-xs text-[#e2e8f0]">Kąt nachylenia (°)</label>
+                  <span className="text-xs text-[#00ff88] font-mono">{solarPanelAngle}° | cos={Math.cos(solarPanelAngle * Math.PI / 180).toFixed(3)}</span>
                 </div>
                 <input
                   type="range"
@@ -344,8 +346,8 @@ export default function Controls({
               {/* Efficiency */}
               <div>
                 <div className="flex justify-between mb-1">
-                  <label className="text-[10px] text-[#e2e8f0]">Sprawność (%)</label>
-                  <span className="text-[10px] text-[#00ff88]">{(solarEfficiency * 100).toFixed(1)}%</span>
+                  <label className="text-xs text-[#e2e8f0]">Sprawność (%)</label>
+                  <span className="text-xs text-[#00ff88] font-mono">{(solarEfficiency * 100).toFixed(1)}%</span>
                 </div>
                 <input
                   type="range"
@@ -361,8 +363,8 @@ export default function Controls({
               {/* Irradiance Override */}
               <div>
                 <div className="flex justify-between mb-1">
-                  <label className="text-[10px] text-[#e2e8f0]">Natężenie (W/m²)</label>
-                  <span className="text-[10px] text-[#00ff88]">{solarIrradianceOverride ?? 'Auto'}</span>
+                  <label className="text-xs text-[#e2e8f0]">Natężenie (W/m²)</label>
+                  <span className="text-xs text-[#00ff88] font-mono">{solarIrradianceOverride ?? 'Auto'}</span>
                 </div>
                 <div className="flex gap-2">
                   <input
@@ -371,30 +373,57 @@ export default function Controls({
                     max="1000"
                     value={solarIrradianceOverride ?? ''}
                     onChange={(e) => onIrradianceOverrideChange(e.target.value ? Number(e.target.value) : null)}
-                    className="flex-1 bg-[#0a0e14] border border-[#2d3748] text-[10px] text-[#e2e8f0] px-2 py-1"
+                    className="flex-1 bg-[#0a0e14] border border-[#2d3748] text-xs text-[#e2e8f0] px-2 py-1"
                     placeholder="Auto"
                   />
                   <button
                     onClick={() => onIrradianceOverrideChange(null)}
-                    className="px-2 py-1 text-[10px] border border-[#2d3748] text-[#718096] hover:border-[#00ff88]"
+                    className="px-2 py-1 text-xs border border-[#2d3748] text-[#718096] hover:border-[#00ff88]"
                   >
                     Auto
                   </button>
                 </div>
               </div>
 
-              <div className="text-[10px] text-[#718096]">Wsp. temp: -0.4%/°C powyżej 25°C</div>
+              <div className="text-xs text-[#718096]">Wsp. temp: -0.4%/°C powyżej 25°C</div>
             </div>
 
             {/* Battery Physics */}
             <div className="space-y-2 border-t border-[#2d3748] pt-2">
-              <h4 className="text-[#00ff88] text-[10px] font-bold uppercase">Bateria</h4>
+              <h4 className="text-[#00ff88] text-xs font-bold uppercase">Bateria</h4>
+
+              {/* Battery Capacity Selector */}
+              <div>
+                <label className="text-xs text-[#e2e8f0] mb-1 block">Pojemność baterii</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { size: 'small' as const, label: 'Mała', capacity: '13.5 kWh' },
+                    { size: 'medium' as const, label: 'Średnia', capacity: '40 kWh' },
+                    { size: 'large' as const, label: 'Duża', capacity: '100 kWh' },
+                  ].map(({ size, label, capacity }) => (
+                    <button
+                      key={size}
+                      onClick={() => onBatteryCapacityChange(size)}
+                      className={`py-2 px-2 text-xs border-2 font-semibold transition-all ${
+                        (batteryCapacity <= 13.5 && size === 'small') ||
+                        (batteryCapacity > 13.5 && batteryCapacity <= 40 && size === 'medium') ||
+                        (batteryCapacity > 40 && size === 'large')
+                          ? 'border-[#00ff88] bg-[#00ff88] text-[#0a0e14]'
+                          : 'border-[#2d3748] bg-[#0a0e14] text-[#e2e8f0] hover:border-[#00ff88]'
+                      }`}
+                    >
+                      <div>{label}</div>
+                      <div className="text-[10px] opacity-70">{capacity}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* Internal Resistance */}
               <div>
                 <div className="flex justify-between mb-1">
-                  <label className="text-[10px] text-[#e2e8f0]">Opór wewn. (Ω)</label>
-                  <span className="text-[10px] text-[#00ff88]">{batteryInternalResistance.toFixed(3)}</span>
+                  <label className="text-xs text-[#e2e8f0]">Opór wewn. (Ω)</label>
+                  <span className="text-xs text-[#00ff88] font-mono">{batteryInternalResistance.toFixed(3)}</span>
                 </div>
                 <input
                   type="range"
@@ -410,20 +439,20 @@ export default function Controls({
               {/* C-rate & DoD Display */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-[#141920] border border-[#2d3748] rounded p-2">
-                  <div className="text-[10px] text-[#718096]">C-rate</div>
-                  <div className="text-[10px] text-[#00ff88] font-bold">{batteryCRate.toFixed(2)}C</div>
+                  <div className="text-xs text-[#718096]">C-rate</div>
+                  <div className="text-xs text-[#00ff88] font-bold font-mono">{batteryCRate.toFixed(2)}C</div>
                 </div>
                 <div className="bg-[#141920] border border-[#2d3748] rounded p-2">
-                  <div className="text-[10px] text-[#718096]">DoD</div>
-                  <div className="text-[10px] text-[#00ff88] font-bold">{batteryDoD.toFixed(1)}%</div>
+                  <div className="text-xs text-[#718096]">DoD</div>
+                  <div className="text-xs text-[#00ff88] font-bold font-mono">{batteryDoD.toFixed(1)}%</div>
                 </div>
               </div>
 
               {/* Min/Max SoC */}
               <div>
                 <div className="flex justify-between mb-1">
-                  <label className="text-[10px] text-[#e2e8f0]">Min SoC (%)</label>
-                  <span className="text-[10px] text-[#00ff88]">{batteryMinSoC}%</span>
+                  <label className="text-xs text-[#e2e8f0]">Min SoC (%)</label>
+                  <span className="text-xs text-[#00ff88] font-mono">{batteryMinSoC}%</span>
                 </div>
                 <input
                   type="range"
@@ -438,8 +467,8 @@ export default function Controls({
 
               <div>
                 <div className="flex justify-between mb-1">
-                  <label className="text-[10px] text-[#e2e8f0]">Max SoC (%)</label>
-                  <span className="text-[10px] text-[#00ff88]">{batteryMaxSoC}%</span>
+                  <label className="text-xs text-[#e2e8f0]">Max SoC (%)</label>
+                  <span className="text-xs text-[#00ff88] font-mono">{batteryMaxSoC}%</span>
                 </div>
                 <input
                   type="range"
@@ -455,17 +484,17 @@ export default function Controls({
 
             {/* System Voltage & Current */}
             <div className="space-y-2 border-t border-[#2d3748] pt-2">
-              <h4 className="text-[#00ff88] text-[10px] font-bold uppercase">System</h4>
+              <h4 className="text-[#00ff88] text-xs font-bold uppercase">System</h4>
 
               {/* Voltage Selector */}
               <div>
-                <label className="text-[10px] text-[#e2e8f0] mb-1 block">Napięcie systemu</label>
+                <label className="text-xs text-[#e2e8f0] mb-1 block">Napięcie systemu</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[120, 240, 480].map((v) => (
                     <button
                       key={v}
                       onClick={() => onSystemVoltageChange(v)}
-                      className={`py-1 px-2 text-[10px] border-2 font-semibold transition-all ${
+                      className={`py-1 px-2 text-xs border-2 font-semibold transition-all ${
                         systemVoltage === v
                           ? 'border-[#00ff88] bg-[#00ff88] text-[#0a0e14]'
                           : 'border-[#2d3748] bg-[#0a0e14] text-[#e2e8f0] hover:border-[#00ff88]'
@@ -479,13 +508,13 @@ export default function Controls({
 
               {/* Wire Gauge */}
               <div>
-                <label className="text-[10px] text-[#e2e8f0] mb-1 block">Grubość przewodu</label>
+                <label className="text-xs text-[#e2e8f0] mb-1 block">Grubość przewodu</label>
                 <div className="grid grid-cols-3 gap-2">
                   {['10AWG', '8AWG', '6AWG'].map((g) => (
                     <button
                       key={g}
                       onClick={() => onWireGaugeChange(g)}
-                      className={`py-1 px-2 text-[10px] border-2 font-semibold transition-all ${
+                      className={`py-1 px-2 text-xs border-2 font-semibold transition-all ${
                         wireGauge === g
                           ? 'border-[#00ff88] bg-[#00ff88] text-[#0a0e14]'
                           : 'border-[#2d3748] bg-[#0a0e14] text-[#e2e8f0] hover:border-[#00ff88]'
@@ -499,16 +528,16 @@ export default function Controls({
 
               {/* Current & Power Display */}
               <div className="bg-[#141920] border border-[#2d3748] rounded p-2">
-                <div className="text-[10px] text-[#718096] mb-1">I = P / V</div>
-                <div className="text-[10px] text-[#00ff88] font-mono">
+                <div className="text-xs text-[#718096] mb-1">I = P / V</div>
+                <div className="text-xs text-[#00ff88] font-mono">
                   I = {currentPower.toFixed(2)} kW / {systemVoltage} V = {(currentPower * 1000 / systemVoltage).toFixed(2)} A
                 </div>
               </div>
 
               {/* System Efficiency */}
               <div className="bg-[#141920] border border-[#2d3748] rounded p-2">
-                <div className="text-[10px] text-[#718096]">Całkowita sprawność systemu</div>
-                <div className="text-[10px] text-[#00ff88] font-bold text-lg">{totalEfficiency.toFixed(1)}%</div>
+                <div className="text-xs text-[#718096]">Całkowita sprawność systemu</div>
+                <div className="text-xs text-[#00ff88] font-bold font-mono text-lg">{totalEfficiency.toFixed(1)}%</div>
               </div>
             </div>
           </div>

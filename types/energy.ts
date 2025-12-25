@@ -23,6 +23,15 @@ export interface SolarSystem {
   area: number;                // m² - Total panel area
 }
 
+export type BatterySize = 'small' | 'medium' | 'large';
+
+export interface BatteryConfig {
+  size: BatterySize;
+  capacity: number;            // kWh - Total capacity
+  internalResistance: number;  // Ω - Battery internal resistance
+  maxCRate: number;            // Maximum C-rate (discharge rate relative to capacity)
+}
+
 export interface BatterySystem {
   capacity: number;            // kWh - Total capacity
   currentCharge: number;       // kWh - Current charge level
@@ -125,7 +134,8 @@ export type ApplianceType =
   | 'computer'
   | 'washer'
   | 'heater'
-  | 'dishwasher';
+  | 'dishwasher'
+  | 'electric_car';
 
 export interface UsagePattern {
   startHour: number;           // Hour when typically turned on

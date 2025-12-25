@@ -149,14 +149,16 @@ export function calculateNetEnergyFlow(
 export function calculateBatteryPower(
   solarPower: number,
   consumption: number,
-  currentSoC: number
+  currentSoC: number,
+  minSoC: number = 10,
+  maxSoC: number = 100
 ): number {
   const deficit = consumption - solarPower;
 
   // If we need more power than solar provides
   if (deficit > 0) {
     // Discharge battery if it has charge
-    if (currentSoC > PHYSICS_CONSTANTS.BATTERY_MIN_SOC) {
+    if (currentSoC > minSoC) {
       return Math.min(deficit, PHYSICS_CONSTANTS.BATTERY_MAX_CHARGE_RATE);
     }
     return 0; // Battery empty, will need grid
@@ -165,7 +167,7 @@ export function calculateBatteryPower(
   // If we have excess solar power
   if (deficit < 0) {
     // Charge battery if not full
-    if (currentSoC < PHYSICS_CONSTANTS.BATTERY_MAX_SOC) {
+    if (currentSoC < maxSoC) {
       return Math.max(deficit, -PHYSICS_CONSTANTS.BATTERY_MAX_CHARGE_RATE);
     }
     return 0; // Battery full, will export to grid

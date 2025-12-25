@@ -72,6 +72,15 @@ const INITIAL_APPLIANCES: ApplianceState[] = [
     position: { x: 5, y: 0.8, z: 5 },
     alwaysOn: false,
   },
+  {
+    id: 'electric-car',
+    name: 'Samochód Elektryczny',
+    type: 'electric_car',
+    powerRating: PHYSICS_CONSTANTS.APPLIANCE_POWER.electric_car,
+    isOn: false,
+    position: { x: 12, y: 0, z: 8 },
+    alwaysOn: false,
+  },
 ];
 
 const INITIAL_STATE: EnergySystemState = {
@@ -167,6 +176,7 @@ interface EnergyStore {
   setSolarEfficiency: (efficiency: number) => void;
   setIrradianceOverride: (irradiance: number | null) => void;
   setBatteryInternalResistance: (resistance: number) => void;
+  setBatteryConfig: (size: 'small' | 'medium' | 'large') => void;
   setSystemVoltage: (voltage: number) => void;
   setWireGauge: (gauge: string) => void;
   setMinMaxSoC: (min: number, max: number) => void;
@@ -214,7 +224,9 @@ export const useEnergyStore = create<EnergyStore>()(
         const batteryPowerFlow = calculateBatteryPower(
           solarPower,
           totalConsumption,
-          prevState.battery.stateOfCharge
+          prevState.battery.stateOfCharge,
+          prevState.battery.minSoC ?? 10,
+          prevState.battery.maxSoC ?? 100
         );
 
         const currentTemp = calculateTemperature(newTime);
@@ -291,9 +303,10 @@ export const useEnergyStore = create<EnergyStore>()(
         const gridImported = gridPower > 0 ? gridPower * accumulationDeltaTimeHours : 0;
         const gridExported = gridPower < 0 ? -gridPower * accumulationDeltaTimeHours : 0;
 
+        const solarToConsumption = Math.min(solarPower, totalConsumption);
         const totalSolarUsed = prevState.solar.totalGenerated;
         const costSavings = calculateCostSavings(
-          totalSolarUsed,
+          solarToConsumption * accumulationDeltaTimeHours,
           prevState.grid.totalExported,
           prevState.grid.totalImported
         );
@@ -338,7 +351,9 @@ export const useEnergyStore = create<EnergyStore>()(
               netEnergy: solarPower - totalConsumption,
               costSavings,
               co2Saved,
-              efficiency: totalSolarUsed > 0 ? (totalSolarUsed / prevState.solar.totalGenerated) * 100 : 0,
+              efficiency: solarPower > 0
+                ? ((solarPower - losses.totalLosses) / solarPower) * 100
+                : prevState.statistics.efficiency,
             },
 
             losses,
@@ -491,6 +506,25 @@ export const useEnergyStore = create<EnergyStore>()(
             },
           },
         }));
+      },
+
+      setBatteryConfig: (size: 'small' | 'medium' | 'large') => {
+        const config = PHYSICS_CONSTANTS.BATTERY_CONFIGS[size];
+        set((prev) => {
+          const currentSoC = prev.state.battery.stateOfCharge;
+          return {
+            state: {
+              ...prev.state,
+              battery: {
+                ...prev.state.battery,
+                capacity: config.capacity,
+                currentCharge: (currentSoC / 100) * config.capacity,
+                internalResistance: config.internalResistance,
+                maxChargeRate: config.capacity * config.maxCRate,
+              },
+            },
+          };
+        });
       },
 
       setSystemVoltage: (voltage: number) => {

@@ -1,5 +1,6 @@
 import type { EnergySystemState } from '@/types/energy';
 import { PHYSICS_CONSTANTS } from './physicsConstants';
+import { POSITIONS } from '@/components/Scene/constants';
 
 export interface Vector3D {
   x: number;
@@ -20,8 +21,8 @@ const COLOR_SOLAR = 0xFFD700;
 const COLOR_BATTERY = 0x00BFFF;
 const COLOR_GRID = 0xFF6347;
 
-// Shed position (central hub)
-const SHED_POSITION: Vector3D = { x: 10, y: 1.5, z: 0 };
+// Inverter position on garage wall (routing hub)
+const SHED_POSITION: Vector3D = POSITIONS.inverter;
 
 /**
  * Calculate active particle routes based on current energy flow
@@ -37,10 +38,10 @@ export function calculateParticleRoutes(
   const solarPosition: Vector3D = { x: 0, y: 16.6, z: 0 };
 
   // Battery position
-  const batteryPosition: Vector3D = { x: -5, y: 0.75, z: -4 };
+  const batteryPosition: Vector3D = POSITIONS.battery;
 
-  // Grid connection point (farther from shed)
-  const gridPosition: Vector3D = { x: 15, y: 0, z: 0 };
+  // Grid connection point
+  const gridPosition: Vector3D = POSITIONS.grid;
 
   const { solar, battery, grid, consumption } = energyState;
 
