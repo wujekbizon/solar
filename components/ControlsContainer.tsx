@@ -29,6 +29,7 @@ const appliances = useEnergyStore((store) => store.state.consumption.appliances)
   const solarIrradianceOverride = useEnergyStore((store) => store.state.solar.irradianceOverride);
   
   // Battery state
+  const batteries = useEnergyStore((store) => store.state.batteries);
   const batteryCapacity = useEnergyStore((store) => store.state.battery.capacity);
   const batteryInternalResistance = useEnergyStore((store) => store.state.battery.internalResistance ?? 0.05);
   const batteryMinSoC = useEnergyStore((store) => store.state.battery.minSoC ?? 20);
@@ -59,6 +60,9 @@ const appliances = useEnergyStore((store) => store.state.consumption.appliances)
   const setSystemVoltage = useEnergyStore((store) => store.setSystemVoltage);
   const setWireGauge = useEnergyStore((store) => store.setWireGauge);
   const setBatteryConfig = useEnergyStore((store) => store.setBatteryConfig);
+  const addBattery = useEnergyStore((store) => store.addBattery);
+  const removeBattery = useEnergyStore((store) => store.removeBattery);
+  const changeBatterySize = useEnergyStore((store) => store.changeBatterySize);
 
   return (
     <div className="relative">
@@ -73,6 +77,7 @@ const appliances = useEnergyStore((store) => store.state.consumption.appliances)
         solarPanelAngle={solarPanelAngle}
         solarEfficiency={solarEfficiency}
         solarIrradianceOverride={solarIrradianceOverride}
+        batteries={batteries}
         batteryCapacity={batteryCapacity}
         batteryInternalResistance={batteryInternalResistance}
         batteryMinSoC={batteryMinSoC}
@@ -100,6 +105,9 @@ const appliances = useEnergyStore((store) => store.state.consumption.appliances)
         onSystemVoltageChange={setSystemVoltage}
         onWireGaugeChange={setWireGauge}
         onBatteryCapacityChange={setBatteryConfig}
+        onAddBattery={addBattery}
+        onRemoveBattery={removeBattery}
+        onChangeBatterySize={changeBatterySize}
       />
 
       {selectedApplianceId && (() => {

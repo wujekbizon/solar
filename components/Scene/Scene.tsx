@@ -31,7 +31,6 @@ export default function Scene({ energyState, onApplianceClick }: SceneProps) {
   const controlsRef = useRef<OrbitControls | null>(null);
   const houseGroupRef = useRef<THREE.Group | null>(null);
   const solarPanelsRef = useRef<THREE.Group | null>(null);
-  const batteryRef = useRef<THREE.Mesh | null>(null);
   const appliancesRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const powerLinesRef = useRef<THREE.Group | null>(null);
   const shedPositionRef = useRef<{ x: number; y: number; z: number }>(POSITIONS.inverter);
@@ -42,13 +41,6 @@ export default function Scene({ energyState, onApplianceClick }: SceneProps) {
   const rightMouseDown = useRef<boolean>(false);
   const particleSystemRef = useRef<THREE.Points | null>(null);
   const particlesRef = useRef<ParticlesData | null>(null);
-
-  // Determine battery scale based on capacity
-  const getBatteryScale = (capacity: number): number => {
-    if (capacity <= 13.5) return 1; // Small
-    if (capacity <= 40) return 1.5; // Medium
-    return 2; // Large
-  };
 
   useEffect(() => {
     energyStateRef.current = energyState;
@@ -85,8 +77,7 @@ export default function Scene({ energyState, onApplianceClick }: SceneProps) {
       <Shed sceneRef={sceneRef} shedPositionRef={shedPositionRef} />
       <Battery
         sceneRef={sceneRef}
-        batteryRef={batteryRef}
-        scale={getBatteryScale(energyState.battery.capacity)}
+        batteries={energyState.batteries}
       />
       <GridConnection sceneRef={sceneRef} />
       <Car sceneRef={sceneRef} position={POSITIONS.car} />

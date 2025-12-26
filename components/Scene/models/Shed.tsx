@@ -12,7 +12,6 @@ interface ShedProps {
 }
 
 /**
- * Garage (formerly Shed)
  * Creates a 6×4×8 garage structure with transparent walls (like house)
  * Battery storage and inverter location
  * Returns position for power line connections

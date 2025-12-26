@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { EnergySystemState, ApplianceState, WeatherCondition } from '@/types/energy';
+import type { EnergySystemState, ApplianceState, WeatherCondition, IndividualBattery, BatterySize } from '@/types/energy';
 import { PHYSICS_CONSTANTS } from '@/utils/physicsConstants';
 import {
   calculateSolarPower,
@@ -102,6 +102,18 @@ const INITIAL_STATE: EnergySystemState = {
     area: 56 * PHYSICS_CONSTANTS.PANEL_AREA_M2,
   },
 
+  batteries: [
+    {
+      id: 'battery-1',
+      size: 'small',
+      capacity: PHYSICS_CONSTANTS.BATTERY_CONFIGS.small.capacity,
+      currentCharge: PHYSICS_CONSTANTS.BATTERY_CONFIGS.small.capacity * 0.5,
+      stateOfCharge: 50,
+      internalResistance: PHYSICS_CONSTANTS.BATTERY_CONFIGS.small.internalResistance,
+      maxCRate: PHYSICS_CONSTANTS.BATTERY_CONFIGS.small.maxCRate,
+    },
+  ],
+
   battery: {
     capacity: PHYSICS_CONSTANTS.BATTERY_CAPACITY,
     currentCharge: PHYSICS_CONSTANTS.BATTERY_CAPACITY * 0.5,
@@ -177,6 +189,9 @@ interface EnergyStore {
   setIrradianceOverride: (irradiance: number | null) => void;
   setBatteryInternalResistance: (resistance: number) => void;
   setBatteryConfig: (size: 'small' | 'medium' | 'large') => void;
+  addBattery: (size: BatterySize) => void;
+  removeBattery: (id: string) => void;
+  changeBatterySize: (id: string, size: BatterySize) => void;
   setSystemVoltage: (voltage: number) => void;
   setWireGauge: (gauge: string) => void;
   setMinMaxSoC: (min: number, max: number) => void;
@@ -521,6 +536,112 @@ export const useEnergyStore = create<EnergyStore>()(
                 currentCharge: (currentSoC / 100) * config.capacity,
                 internalResistance: config.internalResistance,
                 maxChargeRate: config.capacity * config.maxCRate,
+              },
+            },
+          };
+        });
+      },
+
+      addBattery: (size: BatterySize) => {
+        set((prev) => {
+          // Max 12 batteries
+          if (!prev.state.batteries || prev.state.batteries.length >= 12) return prev;
+
+          const config = PHYSICS_CONSTANTS.BATTERY_CONFIGS[size];
+          const newBattery: IndividualBattery = {
+            id: `battery-${prev.state.batteries.length + 1}`,
+            size,
+            capacity: config.capacity,
+            currentCharge: config.capacity * 0.5, // Start at 50%
+            stateOfCharge: 50,
+            internalResistance: config.internalResistance,
+            maxCRate: config.maxCRate,
+          };
+
+          const newBatteries = [...prev.state.batteries, newBattery];
+
+          // Compute aggregate state
+          const totalCapacity = newBatteries.reduce((sum, b) => sum + b.capacity, 0);
+          const totalCharge = newBatteries.reduce((sum, b) => sum + b.currentCharge, 0);
+          const equivalentResistance = 1 / newBatteries.reduce((sum, b) => sum + (1 / b.internalResistance), 0);
+
+          return {
+            state: {
+              ...prev.state,
+              batteries: newBatteries,
+              battery: {
+                ...prev.state.battery,
+                capacity: totalCapacity,
+                currentCharge: totalCharge,
+                stateOfCharge: (totalCharge / totalCapacity) * 100,
+                internalResistance: equivalentResistance,
+              },
+            },
+          };
+        });
+      },
+
+      removeBattery: (id: string) => {
+        set((prev) => {
+          // Must have at least 1 battery
+          if (!prev.state.batteries || prev.state.batteries.length <= 1) return prev;
+
+          const newBatteries = prev.state.batteries.filter((b) => b.id !== id);
+
+          // Compute aggregate state
+          const totalCapacity = newBatteries.reduce((sum, b) => sum + b.capacity, 0);
+          const totalCharge = newBatteries.reduce((sum, b) => sum + b.currentCharge, 0);
+          const equivalentResistance = 1 / newBatteries.reduce((sum, b) => sum + (1 / b.internalResistance), 0);
+
+          return {
+            state: {
+              ...prev.state,
+              batteries: newBatteries,
+              battery: {
+                ...prev.state.battery,
+                capacity: totalCapacity,
+                currentCharge: totalCharge,
+                stateOfCharge: (totalCharge / totalCapacity) * 100,
+                internalResistance: equivalentResistance,
+              },
+            },
+          };
+        });
+      },
+
+      changeBatterySize: (id: string, size: BatterySize) => {
+        set((prev) => {
+          if (!prev.state.batteries) return prev;
+          const config = PHYSICS_CONSTANTS.BATTERY_CONFIGS[size];
+          const newBatteries = prev.state.batteries.map((b) => {
+            if (b.id !== id) return b;
+
+            // Preserve state of charge percentage when changing size
+            return {
+              ...b,
+              size,
+              capacity: config.capacity,
+              currentCharge: (b.stateOfCharge / 100) * config.capacity,
+              internalResistance: config.internalResistance,
+              maxCRate: config.maxCRate,
+            };
+          });
+
+          // Compute aggregate state
+          const totalCapacity = newBatteries.reduce((sum, b) => sum + b.capacity, 0);
+          const totalCharge = newBatteries.reduce((sum, b) => sum + b.currentCharge, 0);
+          const equivalentResistance = 1 / newBatteries.reduce((sum, b) => sum + (1 / b.internalResistance), 0);
+
+          return {
+            state: {
+              ...prev.state,
+              batteries: newBatteries,
+              battery: {
+                ...prev.state.battery,
+                capacity: totalCapacity,
+                currentCharge: totalCharge,
+                stateOfCharge: (totalCharge / totalCapacity) * 100,
+                internalResistance: equivalentResistance,
               },
             },
           };

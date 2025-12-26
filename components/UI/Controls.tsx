@@ -1,7 +1,7 @@
 'use client';
 
-import { Clock, Play, Pause, CloudSun, Sun, Cloud, Moon, Home, RotateCcw, Zap, Settings } from 'lucide-react';
-import type { ApplianceState, WeatherCondition } from '@/types/energy';
+import { Clock, Play, Pause, CloudSun, Sun, Cloud, Moon, Home, RotateCcw, Zap, Settings, Battery as BatteryIcon } from 'lucide-react';
+import type { ApplianceState, WeatherCondition, IndividualBattery, BatterySize } from '@/types/energy';
 import { useState } from 'react';
 
 interface ControlsProps {
@@ -15,6 +15,7 @@ interface ControlsProps {
   solarPanelAngle: number;
   solarEfficiency: number;
   solarIrradianceOverride: number | null;
+  batteries: IndividualBattery[];
   batteryCapacity: number;
   batteryInternalResistance: number;
   batteryMinSoC: number;
@@ -39,6 +40,9 @@ interface ControlsProps {
   onIrradianceOverrideChange: (irr: number | null) => void;
   onBatteryInternalResistanceChange: (r: number) => void;
   onBatteryCapacityChange: (size: 'small' | 'medium' | 'large') => void;
+  onAddBattery: (size: BatterySize) => void;
+  onRemoveBattery: (id: string) => void;
+  onChangeBatterySize: (id: string, size: BatterySize) => void;
   onMinMaxSoCChange: (min: number, max: number) => void;
   onSystemVoltageChange: (v: number) => void;
   onWireGaugeChange: (gauge: string) => void;
@@ -55,6 +59,7 @@ export default function Controls({
   solarPanelAngle,
   solarEfficiency,
   solarIrradianceOverride,
+  batteries,
   batteryCapacity,
   batteryInternalResistance,
   batteryMinSoC,
@@ -79,11 +84,15 @@ export default function Controls({
   onIrradianceOverrideChange,
   onBatteryInternalResistanceChange,
   onBatteryCapacityChange,
+  onAddBattery,
+  onRemoveBattery,
+  onChangeBatterySize,
   onMinMaxSoCChange,
   onSystemVoltageChange,
   onWireGaugeChange,
 }: ControlsProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [selectedBatterySize, setSelectedBatterySize] = useState<BatterySize>('medium');
   const formatTime = (hours: number) => {
     const h = Math.floor(hours);
     const m = Math.floor((hours - h) * 60);
@@ -255,6 +264,111 @@ export default function Controls({
           <div className="text-[#718096] font-mono text-xs mb-1">Całkowita moc systemu</div>
           <div className="text-[#00ff88] font-mono text-lg font-bold">
             {(((solarPanelCount ?? 56) * (solarPowerPerPanel ?? 300)) / 1000).toFixed(1)} kW
+          </div>
+        </div>
+      </div>
+
+      {/* Battery Configuration */}
+      <div className="bg-[#141920] border-2 border-[#2d3748] rounded-lg p-3 mt-4">
+        <h3 className="text-white text-sm font-mono uppercase tracking-wider mb-3 flex items-center gap-2">
+          <BatteryIcon className="w-4 h-4" />
+          Baterie ({batteries?.length || 0}/12)
+        </h3>
+
+        {/* Battery List */}
+        <div className="space-y-2 mb-3 max-h-48 overflow-y-auto">
+          {batteries?.map((battery, index) => {
+            const sizeLabel = battery.size === 'small' ? 'Mała' : battery.size === 'medium' ? 'Średnia' : 'Duża';
+            return (
+              <div key={battery.id} className="bg-[#0a0e14] border border-[#2d3748] rounded p-2">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#00ff88] font-mono text-xs font-bold">#{index + 1}</span>
+                    <span className="text-[#e2e8f0] font-mono text-xs">{sizeLabel}</span>
+                    <span className="text-[#718096] font-mono text-xs">({battery.capacity} kWh)</span>
+                  </div>
+                  <span className="text-[#00ff88] font-mono text-xs">{battery.stateOfCharge.toFixed(0)}%</span>
+                </div>
+
+                {/* Size Change Buttons */}
+                <div className="grid grid-cols-3 gap-1">
+                  {(['small', 'medium', 'large'] as BatterySize[]).map((size) => {
+                    const label = size === 'small' ? 'M' : size === 'medium' ? 'Ś' : 'D';
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => onChangeBatterySize(battery.id, size)}
+                        className={`px-2 py-1 rounded font-mono text-xs transition-all ${
+                          battery.size === size
+                            ? 'bg-[#00ff88] text-[#0a0e14] border border-[#00ff88]'
+                            : 'bg-[#1a202c] text-[#718096] border border-[#2d3748] hover:border-[#00ff88]'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Size Selector */}
+        <div className="mb-2">
+          <div className="text-[#718096] font-mono text-xs mb-1">Rozmiar nowej baterii:</div>
+          <div className="grid grid-cols-3 gap-1">
+            {(['small', 'medium', 'large'] as BatterySize[]).map((size) => {
+              const label = size === 'small' ? 'M' : size === 'medium' ? 'Ś' : 'D';
+              const capacityLabel = size === 'small' ? '13.5' : size === 'medium' ? '40' : '100';
+              return (
+                <button
+                  key={size}
+                  onClick={() => setSelectedBatterySize(size)}
+                  className={`px-2 py-1 rounded font-mono text-xs transition-all ${
+                    selectedBatterySize === size
+                      ? 'bg-[#00ff88] text-[#0a0e14] border border-[#00ff88]'
+                      : 'bg-[#1a202c] text-[#718096] border border-[#2d3748] hover:border-[#00ff88]'
+                  }`}
+                >
+                  {label} ({capacityLabel} kWh)
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Add/Remove Buttons */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => onAddBattery(selectedBatterySize)}
+            disabled={(batteries?.length || 0) >= 12}
+            className={`px-3 py-2 rounded font-mono text-xs transition-all ${
+              (batteries?.length || 0) >= 12
+                ? 'bg-[#1a202c] text-[#4a5568] border border-[#2d3748] cursor-not-allowed'
+                : 'bg-[#0a0e14] text-[#00ff88] border border-[#00ff88] hover:bg-[#00ff88] hover:text-[#0a0e14]'
+            }`}
+          >
+            + Dodaj
+          </button>
+          <button
+            onClick={() => batteries && batteries.length > 1 && onRemoveBattery(batteries[batteries.length - 1].id)}
+            disabled={(batteries?.length || 0) <= 1}
+            className={`px-3 py-2 rounded font-mono text-xs transition-all ${
+              (batteries?.length || 0) <= 1
+                ? 'bg-[#1a202c] text-[#4a5568] border border-[#2d3748] cursor-not-allowed'
+                : 'bg-[#0a0e14] text-[#FF6347] border border-[#FF6347] hover:bg-[#FF6347] hover:text-[#0a0e14]'
+            }`}
+          >
+            - Usuń
+          </button>
+        </div>
+
+        {/* Total Capacity Display */}
+        <div className="bg-[#0a0e14] border border-[#2d3748] rounded p-2 mt-3">
+          <div className="text-[#718096] font-mono text-xs mb-1">Całkowita pojemność</div>
+          <div className="text-[#00ff88] font-mono text-lg font-bold">
+            {batteryCapacity.toFixed(1)} kWh
           </div>
         </div>
       </div>

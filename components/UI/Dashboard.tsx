@@ -108,6 +108,16 @@ export default function Dashboard({ state }: DashboardProps) {
           </div>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
+              <p className="text-xs text-[#718096] uppercase tracking-wider">Pojemność</p>
+              <p className="font-semibold text-[#e2e8f0] tabular-nums">{formatEnergy(battery.capacity)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[#718096] uppercase tracking-wider">Naładowanie</p>
+              <p className="font-semibold text-[#e2e8f0] tabular-nums">{formatEnergy(battery.currentCharge)}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
               <p className="text-xs text-[#718096] uppercase tracking-wider">Status</p>
               <p className="font-semibold text-[#e2e8f0] flex items-center gap-1">
                 {battery.charging ? (

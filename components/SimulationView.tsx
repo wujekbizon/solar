@@ -27,10 +27,10 @@ export default function SimulationView() {
       </div>
 
       <div className="bg-black h-full overflow-hidden">
-        <Scene 
-          energyState={state} 
-          onApplianceClick={toggleAppliance} 
-          key={state.solar.panelCount} 
+        <Scene
+          energyState={state}
+          onApplianceClick={toggleAppliance}
+          key={`${state.solar.panelCount}-${state.batteries.length}`}
         />
       </div>
       <div className="overflow-y-auto overflow-x-hidden bg-[#141920]">

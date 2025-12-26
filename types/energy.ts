@@ -32,6 +32,16 @@ export interface BatteryConfig {
   maxCRate: number;            // Maximum C-rate (discharge rate relative to capacity)
 }
 
+export interface IndividualBattery {
+  id: string;                  // Unique battery identifier
+  size: BatterySize;           // Battery size (small/medium/large)
+  capacity: number;            // kWh - Total capacity
+  currentCharge: number;       // kWh - Current charge level
+  stateOfCharge: number;       // 0-100% - Percentage charged
+  internalResistance: number;  // Ω - Battery internal resistance
+  maxCRate: number;            // Maximum C-rate
+}
+
 export interface BatterySystem {
   capacity: number;            // kWh - Total capacity
   currentCharge: number;       // kWh - Current charge level
@@ -107,7 +117,8 @@ export interface EnergySystemState {
   isManualWeatherControl: boolean; // User manually set weather
 
   solar: SolarSystem;
-  battery: BatterySystem;
+  batteries: IndividualBattery[]; // Array of individual batteries
+  battery: BatterySystem;         // Aggregate battery state (computed from batteries array)
   consumption: PowerConsumption;
   grid: GridConnection;
   statistics: EnergyStatistics;
