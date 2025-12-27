@@ -40,210 +40,284 @@ export function useSceneInit({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Scene setup
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(PHYSICS_CONSTANTS.COLORS.SKY_DAY);
-    sceneRef.current = scene;
+    let animationFrameId: number | null = null;
+    let isCleanedUp = false;
 
-    // Camera setup - isometric view
-    const camera = new THREE.PerspectiveCamera(
-      45,
-      containerRef.current.clientWidth / containerRef.current.clientHeight,
-      0.1,
-      1000
-    );
-    camera.position.set(25, 20, 25);
-    camera.lookAt(0, 0, 0);
-    cameraRef.current = camera;
+    try {
+      // Scene setup
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(PHYSICS_CONSTANTS.COLORS.SKY_DAY);
+      sceneRef.current = scene;
 
-    // Renderer setup
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    containerRef.current.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
+      // Camera setup - isometric view
+      const camera = new THREE.PerspectiveCamera(
+        45,
+        containerRef.current.clientWidth / containerRef.current.clientHeight,
+        0.1,
+        1000
+      );
+      camera.position.set(25, 20, 25);
+      camera.lookAt(0, 0, 0);
+      cameraRef.current = camera;
 
-    // Orbit controls
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.minDistance = 10;
-    controls.maxDistance = 50;
-    controls.maxPolarAngle = Math.PI / 2;
-    controls.enablePan = false; // Disable pan - using right-click for camera rotation instead
-    controlsRef.current = controls;
-
-    // Fixed house center as orbit pivot point
-    const HOUSE_CENTER = new THREE.Vector3(0, 0, 0);
-    controls.target.copy(HOUSE_CENTER); // Set once, never change
-
-    // Track orbit vs free view mode
-    const orbitMode = { current: true };
-
-    // Keyboard event handlers for WASD movement
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-      if (['w', 'a', 's', 'd', 'shift'].includes(key)) {
-        keysPressed.current.add(key);
-      }
-    };
-
-    const handleKeyUp = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-      keysPressed.current.delete(key);
-    };
-
-    // Mouse event handlers for orbit/free view switching
-    const handleMouseDown = (event: MouseEvent) => {
-      if (event.button === 0) { // Left button - orbit mode
-        orbitMode.current = true;
-        controls.enabled = true;
-      } else if (event.button === 2) { // Right button - free view
-        orbitMode.current = false;
-        controls.enabled = false; // Disable OrbitControls for free view
-        rightMouseDown.current = true;
-      }
-    };
-
-    const handleMouseUp = (event: MouseEvent) => {
-      if (event.button === 2) {
-        rightMouseDown.current = false;
-        // Re-enable orbit after right-click released
-        orbitMode.current = true;
-        controls.enabled = true;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mouseup', handleMouseUp);
-
-    // Animation loop
-    let lastTime = Date.now();
-    const animate = () => {
-      requestAnimationFrame(animate);
-      const now = Date.now();
-      const deltaTime = (now - lastTime) / 1000;
-      lastTime = now;
-
-      const currentState = energyStateRef.current;
-
-      // Update sky color and sun light EVERY frame
-      if (scene) {
-        updateSkyColor(scene, currentState.currentTime, currentState.weather);
-        updateSunLight(scene, currentState.currentTime);
-      }
-
-      // Update particles
-      if (particlesRef.current && particleSystemRef.current) {
-        updateParticles(particlesRef.current, particleSystemRef.current, deltaTime);
-      }
-
-      // WASD camera movement (FPS-style)
-      const isSprinting = keysPressed.current.has('shift');
-      const speedMultiplier = isSprinting ? 2 : 1;
-      const moveDistance = moveSpeed * speedMultiplier * deltaTime;
-      const rotateSpeed = 2.0; // radians per second
-
-      // Get camera direction vectors
-      const forward = new THREE.Vector3();
-      camera.getWorldDirection(forward);
-      forward.y = 0; // Keep movement horizontal
-      forward.normalize();
-
-      const right = new THREE.Vector3();
-      right.crossVectors(forward, camera.up).normalize();
-
-      // Camera rotation (when right mouse + A/D)
-      if (rightMouseDown.current) {
-        const rotateAmount = rotateSpeed * deltaTime;
-
-        if (keysPressed.current.has('a')) {
-          // Rotate camera left around house center
-          const offset = camera.position.clone().sub(HOUSE_CENTER);
-          offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotateAmount);
-          camera.position.copy(HOUSE_CENTER.clone().add(offset));
-          camera.lookAt(HOUSE_CENTER); // Always look at house
-        }
-        if (keysPressed.current.has('d')) {
-          // Rotate camera right around house center
-          const offset = camera.position.clone().sub(HOUSE_CENTER);
-          offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), -rotateAmount);
-          camera.position.copy(HOUSE_CENTER.clone().add(offset));
-          camera.lookAt(HOUSE_CENTER); // Always look at house
-        }
-      }
-
-      // Calculate movement vector (strafing only when NOT rotating)
-      const movement = new THREE.Vector3();
-
-      if (keysPressed.current.has('w')) {
-        movement.add(forward.clone().multiplyScalar(moveDistance));
-      }
-      if (keysPressed.current.has('s')) {
-        movement.add(forward.clone().multiplyScalar(-moveDistance));
-      }
-
-      // Strafe only if right mouse is NOT down
-      if (!rightMouseDown.current) {
-        if (keysPressed.current.has('d')) {
-          movement.add(right.clone().multiplyScalar(moveDistance));
-        }
-        if (keysPressed.current.has('a')) {
-          movement.add(right.clone().multiplyScalar(-moveDistance));
-        }
-      }
-
-      // Apply movement to camera only (NOT target)
-      if (movement.length() > 0) {
-        camera.position.add(movement);
-
-        // Prevent going underground (user wants to enter house but not go below ground)
-        if (camera.position.y < 1) {
-          camera.position.y = 1;
-        }
-
-        // In orbit mode, maintain distance to house center
-        if (orbitMode.current) {
-          const distToHouse = camera.position.distanceTo(HOUSE_CENTER);
-          const direction = camera.position.clone().sub(HOUSE_CENTER).normalize();
-
-          // Clamp distance to OrbitControls min/max
-          const targetDist = Math.max(controls.minDistance, Math.min(controls.maxDistance, distToHouse));
-          camera.position.copy(HOUSE_CENTER.clone().add(direction.multiplyScalar(targetDist)));
-          camera.lookAt(HOUSE_CENTER);
-        }
-      }
-
-      // Only update OrbitControls when in orbit mode
-      if (orbitMode.current && controls.enabled) {
-        controls.update();
-      }
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    // Handle window resize
-    const handleResize = () => {
-      if (!containerRef.current || !camera || !renderer) return;
-      camera.aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
-      camera.updateProjectionMatrix();
+      // Renderer setup
+      const renderer = new THREE.WebGLRenderer({ 
+        antialias: true,
+        alpha: false,
+        powerPreference: 'high-performance'
+      });
       renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
-    };
-    window.addEventListener('resize', handleResize);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio for performance
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      
+      // CRITICAL: Store reference to container element before appending
+      const container = containerRef.current;
+      container.appendChild(renderer.domElement);
+      rendererRef.current = renderer;
 
-    // Cleanup
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('mouseup', handleMouseUp);
-      renderer.dispose();
-      containerRef.current?.removeChild(renderer.domElement);
-    };
-  }, []);
+      // Orbit controls
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.minDistance = 10;
+      controls.maxDistance = 50;
+      controls.maxPolarAngle = Math.PI / 2;
+      controls.enablePan = false;
+      controlsRef.current = controls;
+
+      // Fixed house center as orbit pivot point
+      const HOUSE_CENTER = new THREE.Vector3(0, 0, 0);
+      controls.target.copy(HOUSE_CENTER);
+
+      // Track orbit vs free view mode
+      const orbitMode = { current: true };
+
+      // Keyboard event handlers for WASD movement
+      const handleKeyDown = (event: KeyboardEvent) => {
+        const key = event.key.toLowerCase();
+        if (['w', 'a', 's', 'd', 'shift'].includes(key)) {
+          keysPressed.current.add(key);
+        }
+      };
+
+      const handleKeyUp = (event: KeyboardEvent) => {
+        const key = event.key.toLowerCase();
+        keysPressed.current.delete(key);
+      };
+
+      // Mouse event handlers
+      const handleMouseDown = (event: MouseEvent) => {
+        if (event.button === 0) {
+          orbitMode.current = true;
+          controls.enabled = true;
+        } else if (event.button === 2) {
+          orbitMode.current = false;
+          controls.enabled = false;
+          rightMouseDown.current = true;
+        }
+      };
+
+      const handleMouseUp = (event: MouseEvent) => {
+        if (event.button === 2) {
+          rightMouseDown.current = false;
+          orbitMode.current = true;
+          controls.enabled = true;
+        }
+      };
+
+      // Window resize handler
+      const handleResize = () => {
+        if (!container || !camera || !renderer || isCleanedUp) return;
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+      };
+
+      // Add event listeners
+      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('keyup', handleKeyUp);
+      window.addEventListener('mousedown', handleMouseDown);
+      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('resize', handleResize);
+
+      // Animation loop
+      let lastTime = Date.now();
+      const animate = () => {
+        if (isCleanedUp) return; // Stop animation if cleaned up
+
+        animationFrameId = requestAnimationFrame(animate);
+        const now = Date.now();
+        const deltaTime = (now - lastTime) / 1000;
+        lastTime = now;
+
+        const currentState = energyStateRef.current;
+
+        // Update sky color and sun light
+        if (scene && !isCleanedUp) {
+          updateSkyColor(scene, currentState.currentTime, currentState.weather);
+          updateSunLight(scene, currentState.currentTime);
+        }
+
+        // Update particles
+        if (particlesRef.current && particleSystemRef.current && !isCleanedUp) {
+          updateParticles(particlesRef.current, particleSystemRef.current, deltaTime);
+        }
+
+        // WASD camera movement
+        const isSprinting = keysPressed.current.has('shift');
+        const speedMultiplier = isSprinting ? 2 : 1;
+        const moveDistance = moveSpeed * speedMultiplier * deltaTime;
+        const rotateSpeed = 2.0;
+
+        const forward = new THREE.Vector3();
+        camera.getWorldDirection(forward);
+        forward.y = 0;
+        forward.normalize();
+
+        const right = new THREE.Vector3();
+        right.crossVectors(forward, camera.up).normalize();
+
+        // Camera rotation
+        if (rightMouseDown.current) {
+          const rotateAmount = rotateSpeed * deltaTime;
+
+          if (keysPressed.current.has('a')) {
+            const offset = camera.position.clone().sub(HOUSE_CENTER);
+            offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotateAmount);
+            camera.position.copy(HOUSE_CENTER.clone().add(offset));
+            camera.lookAt(HOUSE_CENTER);
+          }
+          if (keysPressed.current.has('d')) {
+            const offset = camera.position.clone().sub(HOUSE_CENTER);
+            offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), -rotateAmount);
+            camera.position.copy(HOUSE_CENTER.clone().add(offset));
+            camera.lookAt(HOUSE_CENTER);
+          }
+        }
+
+        // Movement
+        const movement = new THREE.Vector3();
+
+        if (keysPressed.current.has('w')) {
+          movement.add(forward.clone().multiplyScalar(moveDistance));
+        }
+        if (keysPressed.current.has('s')) {
+          movement.add(forward.clone().multiplyScalar(-moveDistance));
+        }
+
+        if (!rightMouseDown.current) {
+          if (keysPressed.current.has('d')) {
+            movement.add(right.clone().multiplyScalar(moveDistance));
+          }
+          if (keysPressed.current.has('a')) {
+            movement.add(right.clone().multiplyScalar(-moveDistance));
+          }
+        }
+
+        if (movement.length() > 0) {
+          camera.position.add(movement);
+
+          if (camera.position.y < 1) {
+            camera.position.y = 1;
+          }
+
+          if (orbitMode.current) {
+            const distToHouse = camera.position.distanceTo(HOUSE_CENTER);
+            const direction = camera.position.clone().sub(HOUSE_CENTER).normalize();
+            const targetDist = Math.max(controls.minDistance, Math.min(controls.maxDistance, distToHouse));
+            camera.position.copy(HOUSE_CENTER.clone().add(direction.multiplyScalar(targetDist)));
+            camera.lookAt(HOUSE_CENTER);
+          }
+        }
+
+        if (orbitMode.current && controls.enabled && !isCleanedUp) {
+          controls.update();
+        }
+        
+        if (!isCleanedUp) {
+          renderer.render(scene, camera);
+        }
+      };
+      
+      animate();
+
+      // CRITICAL CLEANUP FUNCTION
+      return () => {
+        console.log('Cleaning up Three.js scene...');
+        isCleanedUp = true;
+
+        // Cancel animation frame
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId);
+        }
+
+        // Remove event listeners
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('keyup', handleKeyUp);
+        window.removeEventListener('mousedown', handleMouseDown);
+        window.removeEventListener('mouseup', handleMouseUp);
+
+        // Dispose controls
+        if (controlsRef.current) {
+          controlsRef.current.dispose();
+          controlsRef.current = null;
+        }
+
+        // Dispose renderer and force context loss
+        if (rendererRef.current) {
+          rendererRef.current.dispose();
+          rendererRef.current.forceContextLoss();
+          
+          // Remove canvas from DOM
+          if (container && rendererRef.current.domElement.parentNode === container) {
+            container.removeChild(rendererRef.current.domElement);
+          }
+          rendererRef.current = null;
+        }
+
+        // Clear scene
+        if (sceneRef.current) {
+          sceneRef.current.traverse((object) => {
+            if (object instanceof THREE.Mesh) {
+              object.geometry?.dispose();
+              if (object.material) {
+                if (Array.isArray(object.material)) {
+                  object.material.forEach(material => material.dispose());
+                } else {
+                  object.material.dispose();
+                }
+              }
+            }
+          });
+          sceneRef.current.clear();
+          sceneRef.current = null;
+        }
+
+        // Clear camera
+        cameraRef.current = null;
+
+        console.log('Three.js scene cleanup complete');
+      };
+    } catch (error) {
+      console.error('Error initializing Three.js scene:', error);
+      isCleanedUp = true;
+      
+      // Attempt cleanup on error
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      if (rendererRef.current) {
+        rendererRef.current.dispose();
+        rendererRef.current.forceContextLoss();
+        rendererRef.current = null;
+      }
+      if (sceneRef.current) {
+        sceneRef.current = null;
+      }
+      
+      throw error; // Re-throw to be caught by error boundary
+    }
+  }, []); // CRITICAL: Empty dependency array to run only once
 }

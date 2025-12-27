@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { EnergySystemState } from '@/types/energy';
@@ -41,6 +41,8 @@ export default function Scene({ energyState, onApplianceClick }: SceneProps) {
   const rightMouseDown = useRef<boolean>(false);
   const particleSystemRef = useRef<THREE.Points | null>(null);
   const particlesRef = useRef<ParticlesData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     energyStateRef.current = energyState;
@@ -60,58 +62,88 @@ export default function Scene({ energyState, onApplianceClick }: SceneProps) {
     moveSpeed,
   });
 
+  if (error) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-red-900/20 to-red-950/20">
+        <div className="text-center p-8 bg-red-900/30 rounded-lg backdrop-blur">
+          <div className="text-red-400 text-xl font-bold mb-2">
+            Error Loading 3D Scene
+          </div>
+          <div className="text-red-300 text-sm mb-4">
+            {error}
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gradient-to-b from-blue-900/20 to-blue-950/20">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-400 mx-auto mb-4" />
+          <p className="text-blue-300 font-medium">Initializing 3D Scene...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" />
 
-      {/* Environment (lighting, sky, sun) */}
-      <Environment
-        sceneRef={sceneRef}
-        currentTime={energyState.currentTime}
-        weather={energyState.weather}
-      />
+      {sceneRef.current && (
+      <>
+        <Environment
+          sceneRef={sceneRef}
+          currentTime={energyState.currentTime}
+          weather={energyState.weather}
+        />
 
-      {/* 3D Model Components */}
-      <Ground sceneRef={sceneRef} />
-      <House sceneRef={sceneRef} houseGroupRef={houseGroupRef} />
-      <Shed sceneRef={sceneRef} shedPositionRef={shedPositionRef} />
-      <Battery
-        sceneRef={sceneRef}
-        batteries={energyState.batteries}
-      />
-      <GridConnection sceneRef={sceneRef} />
-      <Car sceneRef={sceneRef} position={POSITIONS.car} />
-      <SolarPanels
-        sceneRef={sceneRef}
-        solarPanelsRef={solarPanelsRef}
-        panelCount={energyState.solar.panelCount ?? 56}
-        panelAngle={energyState.solar.panelAngle ?? 30}
-      />
-      <Appliances
-        sceneRef={sceneRef}
-        appliancesRef={appliancesRef}
-        labelsRef={labelsRef}
-        appliances={energyState.consumption.appliances}
-      />
+        <Ground sceneRef={sceneRef} />
+        <House sceneRef={sceneRef} houseGroupRef={houseGroupRef} />
+        <Shed sceneRef={sceneRef} shedPositionRef={shedPositionRef} />
+        <Battery sceneRef={sceneRef} batteries={energyState.batteries} />
+        <GridConnection sceneRef={sceneRef} />
+        <Car sceneRef={sceneRef} position={POSITIONS.car} />
+        <SolarPanels
+          sceneRef={sceneRef}
+          solarPanelsRef={solarPanelsRef}
+          panelCount={energyState.solar.panelCount ?? 56}
+          panelAngle={energyState.solar.panelAngle ?? 30}
+        />
+        <Appliances
+          sceneRef={sceneRef}
+          appliancesRef={appliancesRef}
+          labelsRef={labelsRef}
+          appliances={energyState.consumption.appliances}
+        />
 
-      {/* Visualization Components */}
-      <PowerLines
-        sceneRef={sceneRef}
-        powerLinesRef={powerLinesRef}
-        appliances={energyState.consumption.appliances}
-        batteryPosition={POSITIONS.battery}
-        gridPosition={POSITIONS.grid}
-        shedPosition={POSITIONS.inverter}
-        importing={energyState.grid.importing}
-        batteryChargingRate={energyState.battery.chargingRate}
-        solarPower={energyState.solar.currentPower}
-      />
-      <ParticleSystem
-        sceneRef={sceneRef}
-        particleSystemRef={particleSystemRef}
-        particlesRef={particlesRef}
-        energyState={energyState}
-      />
+        <PowerLines
+          sceneRef={sceneRef}
+          powerLinesRef={powerLinesRef}
+          appliances={energyState.consumption.appliances}
+          batteryPosition={POSITIONS.battery}
+          gridPosition={POSITIONS.grid}
+          shedPosition={POSITIONS.inverter}
+          importing={energyState.grid.importing}
+          batteryChargingRate={energyState.battery.chargingRate}
+          solarPower={energyState.solar.currentPower}
+        />
+        <ParticleSystem
+          sceneRef={sceneRef}
+          particleSystemRef={particleSystemRef}
+          particlesRef={particlesRef}
+          energyState={energyState}
+        />
+      </>
+    )}
 
       <div className="absolute top-4 left-4 bg-black/50 text-white p-2 text-xs font-mono rounded">
         <div className="font-bold mb-1">Controls</div>
