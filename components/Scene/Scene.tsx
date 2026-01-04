@@ -17,6 +17,7 @@ import { Environment } from './visualization/Environment';
 import { PowerLines } from './visualization/PowerLines';
 import { ParticleSystem, type ParticlesData } from './visualization/ParticleSystem';
 import { useSceneInit } from '@/hooks/useSceneInit';
+import SceneControls from './SceneControls';
 
 interface SceneProps {
   energyState: EnergySystemState;
@@ -61,6 +62,15 @@ export default function Scene({ energyState, onApplianceClick }: SceneProps) {
     rightMouseDown,
     moveSpeed,
   });
+
+  const resetCamera = () => {
+    if (cameraRef.current && controlsRef.current) {
+      cameraRef.current.position.set(25, 20, 25);
+      cameraRef.current.lookAt(0, 0, 0);
+      controlsRef.current.target.set(0, 0, 0);
+      controlsRef.current.update();
+    }
+  };
 
   if (error) {
     return (
@@ -145,15 +155,7 @@ export default function Scene({ energyState, onApplianceClick }: SceneProps) {
       </>
     )}
 
-      <div className="absolute top-4 left-4 bg-black/50 text-white p-2 text-xs font-mono rounded">
-        <div className="font-bold mb-1">Controls</div>
-        <div>W/S: Move forward/back</div>
-        <div>A/D: Strafe left/right</div>
-        <div>Right-click + A/D: Turn camera</div>
-        <div>Shift: Sprint (2x speed)</div>
-        <div>Left-click drag: Rotate view</div>
-        <div>Mouse wheel: Zoom</div>
-      </div>
+      <SceneControls onResetCamera={resetCamera} />
     </div>
   );
 }

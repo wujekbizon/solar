@@ -219,8 +219,6 @@ export const useEnergyStore = create<EnergyStore>()(
         let newTime = prevState.currentTime + visualDeltaTimeHours;
         if (newTime >= 24) newTime -= 24;
 
-        // ✅ FIX: Only auto-calculate weather if not manually controlled
-        // This was the bug - it was recalculating every frame!
         const weather = prevState.isManualWeatherControl
           ? prevState.weather
           : getWeatherFromTime(newTime);
@@ -331,7 +329,7 @@ export const useEnergyStore = create<EnergyStore>()(
           state: {
             ...prevState,
             currentTime: newTime,
-            weather, // ✅ This now respects isManualWeatherControl
+            weather,
 
             solar: {
               ...prevState.solar,
@@ -404,8 +402,6 @@ export const useEnergyStore = create<EnergyStore>()(
           state: { 
             ...prev.state, 
             currentTime: time,
-            // ✅ FIX: Reset manual weather control when time is changed manually
-            // This allows auto weather to work again after manual time change
             isManualWeatherControl: false,
           },
           lastUpdate: Date.now(),
@@ -420,16 +416,14 @@ export const useEnergyStore = create<EnergyStore>()(
       },
 
       setWeather: (weather: WeatherCondition) => {
-        console.log('🌤️ Setting weather to:', weather); // Debug log
 
-        // Auto-adjust time based on weather
         let newTime = get().state.currentTime;
         if (weather === 'sunny') {
-          newTime = 12; // Noon for sunny
+          newTime = 12; 
         } else if (weather === 'night') {
-          newTime = 0; // Midnight for night
+          newTime = 0;
         } else if (weather === 'cloudy') {
-          newTime = 14; // Afternoon for cloudy
+          newTime = 14; 
         }
 
         set((prev) => ({
@@ -437,7 +431,7 @@ export const useEnergyStore = create<EnergyStore>()(
             ...prev.state,
             currentTime: newTime,
             weather,
-            isManualWeatherControl: true // ✅ This flag prevents auto-override
+            isManualWeatherControl: true
           },
         }));
       },

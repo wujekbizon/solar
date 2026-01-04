@@ -58,7 +58,7 @@ export default function Dashboard({ state }: DashboardProps) {
         <div className="flex items-center gap-4 mt-2 text-sm">
           <span className="font-semibold text-[#00ff88] tabular-nums">Czas: {formatTime(currentTime)}</span>
           <span className="uppercase px-3 py-1 border border-[#2d3748] bg-[#0a0e14] text-[#e2e8f0]">
-            {weather}
+            {weather === 'sunny' ? 'Dzień' : weather === 'cloudy' ? 'Chmury' : 'Noc'}
           </span>
         </div>
       </div>

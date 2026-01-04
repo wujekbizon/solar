@@ -276,7 +276,7 @@ export default function Controls({
         </h3>
 
         {/* Battery List */}
-        <div className="space-y-2 mb-3 max-h-48 overflow-y-auto">
+        <div className="space-y-2 mb-3 max-h-48 overflow-y-auto scrollbar-webkit">
           {batteries?.map((battery, index) => {
             const sizeLabel = battery.size === 'small' ? 'Mała' : battery.size === 'medium' ? 'Średnia' : 'Duża';
             return (
@@ -379,7 +379,7 @@ export default function Controls({
           <Home className="w-4 h-4 text-[#00ff88]" />
           Urządzenia
         </h3>
-        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+        <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-webkit">
           {appliances.map((appliance) => (
             <div
               key={appliance.id}

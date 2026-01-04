@@ -34,3 +34,61 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--industrial-border) var(--industrial-panel);
+  }
+  .scrollbar-webkit {
+    &::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    /* Track (background of scrollbar) */
+    &::-webkit-scrollbar-track {
+      background: var(--industrial-panel);
+      border-radius: 4px;
+      box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.3);
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-color: var(--industrial-border);
+      border-radius: 4px;
+      border: 1px solid var(--industrial-bg);
+    }
+
+    /* Scrollbar buttons (arrows) */
+    &::-webkit-scrollbar-button {
+      display: block;
+      height: 10px;
+      background-color: var(--industrial-panel);
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+
+    /* Up arrow */
+    &::-webkit-scrollbar-button:single-button:vertical:decrement {
+      border-width: 0 5px 5px 5px;
+      border-style: solid;
+      border-color: transparent transparent var(--industrial-border) transparent;
+    }
+
+    /* Down arrow */
+    &::-webkit-scrollbar-button:single-button:vertical:increment {
+      border-width: 5px 5px 0 5px;
+      border-style: solid;
+      border-color: var(--industrial-border) transparent transparent transparent;
+    }
+
+    /* Hover effects */
+    &::-webkit-scrollbar-thumb:hover {
+      background-color: var(--industrial-accent);
+    }
+
+    &::-webkit-scrollbar-button:hover {
+      filter: brightness(1.2);
+    }
+  }
+}

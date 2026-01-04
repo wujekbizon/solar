@@ -30,7 +30,7 @@ export default function SimulationView() {
 
   return (
     <div className="grid grid-cols-[400px_1fr_400px] h-screen gap-0 bg-black overflow-hidden">
-      <div className="overflow-y-auto overflow-x-hidden bg-[#141920]">
+      <div className="overflow-y-auto overflow-x-hidden bg-[#141920] scrollbar-webkit">
         <ControlsContainer state={state} />
       </div>
 
@@ -41,7 +41,7 @@ export default function SimulationView() {
         />
       </div>
       
-      <div className="overflow-y-auto overflow-x-hidden bg-[#141920]">
+      <div className="overflow-y-auto overflow-x-hidden bg-[#141920] scrollbar-webkit">
         <Dashboard state={state} />
       </div>
     </div>
