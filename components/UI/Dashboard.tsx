@@ -303,11 +303,14 @@ export default function Dashboard({ state }: DashboardProps) {
             <div className="border-b border-[#2d3748] pb-2">
               <div className="text-[#00ff88] font-bold mb-1">Moc Słoneczna:</div>
               <div className="text-[#e2e8f0]">
-                P = P_max × η × Sun × cos(θ)
+                P = P_max × Sun × cos(θ)
               </div>
               <div className="text-[#718096] mt-1">
-                = {solar.maxPower.toFixed(1)} kW × {solar.efficiency.toFixed(2)} × {((currentTime >= 6 && currentTime <= 18) ? Math.sin(Math.PI * (currentTime - 6) / 12) : 0).toFixed(2)} × {Math.cos((solar.panelAngle ?? 30) * Math.PI / 180).toFixed(3)}
+                = {solar.maxPower.toFixed(1)} kW × {((currentTime >= 6 && currentTime <= 18) ? Math.sin(Math.PI * (currentTime - 6) / 12) : 0).toFixed(2)} × {Math.cos((solar.panelAngle ?? 30) * Math.PI / 180).toFixed(3)}
                 = <span className="text-[#00ff88]">{solar.currentPower.toFixed(2)} kW</span>
+              </div>
+              <div className="text-[#718096] text-[9px] mt-1">
+                *P_max uwzględnia 18% sprawność przy STC
               </div>
             </div>
 

@@ -32,11 +32,10 @@ E_in = E_out + E_stored
 
 ### 2. Solar Power Generation
 ```
-P_solar = P_max × η × I × cos(θ)
+P_solar = P_max × I × cos(θ)
 
 Where:
-- P_max = Maximum panel rating (5 kW)
-- η = Panel efficiency (18%)
+- P_max = Maximum panel rating (5 kW) - already includes 18% panel efficiency at STC
 - I = Sun intensity (0-1, time-dependent)
 - θ = Panel angle (30°)
 ```

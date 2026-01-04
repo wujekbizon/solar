@@ -460,13 +460,13 @@ export default function Controls({
               {/* Efficiency */}
               <div>
                 <div className="flex justify-between mb-1">
-                  <label className="text-xs text-[#e2e8f0]">Sprawność (%)</label>
+                  <label className="text-xs text-[#e2e8f0]">Wydajność Paneli (%)</label>
                   <span className="text-xs text-[#00ff88] font-mono">{(solarEfficiency * 100).toFixed(1)}%</span>
                 </div>
                 <input
                   type="range"
-                  min="0.10"
-                  max="0.25"
+                  min="0.50"
+                  max="1.00"
                   step="0.01"
                   value={solarEfficiency}
                   onChange={(e) => onSolarEfficiencyChange(Number(e.target.value))}

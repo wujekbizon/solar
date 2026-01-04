@@ -251,11 +251,6 @@ export function getWeatherFromTime(time: number): 'sunny' | 'cloudy' | 'night' {
     return 'night';
   }
 
-  // Cloudy in middle of day (12pm-4pm)
-  if (time >= 12 && time < 16) {
-    return 'cloudy';
-  }
-
   return 'sunny';
 }
 

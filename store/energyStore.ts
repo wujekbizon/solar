@@ -83,6 +83,10 @@ const INITIAL_APPLIANCES: ApplianceState[] = [
   },
 ];
 
+// Initial solar configuration
+const INITIAL_PANEL_COUNT = 56;
+const INITIAL_POWER_PER_PANEL = 300; // Watts per panel
+
 const INITIAL_STATE: EnergySystemState = {
   currentTime: 6,
   timeSpeed: 1,
@@ -91,15 +95,15 @@ const INITIAL_STATE: EnergySystemState = {
   isManualWeatherControl: false,
 
   solar: {
-    maxPower: PHYSICS_CONSTANTS.SOLAR_MAX_POWER,
+    maxPower: (INITIAL_PANEL_COUNT * INITIAL_POWER_PER_PANEL) / 1000, // Calculate from panels: 16.8 kW
     currentPower: 0,
     efficiency: PHYSICS_CONSTANTS.SOLAR_PANEL_EFFICIENCY,
     totalGenerated: 0,
     panelAngle: 30,
-    panelCount: 56,
-    powerPerPanel: 300,
+    panelCount: INITIAL_PANEL_COUNT,
+    powerPerPanel: INITIAL_POWER_PER_PANEL,
     irradianceOverride: null,
-    area: 56 * PHYSICS_CONSTANTS.PANEL_AREA_M2,
+    area: INITIAL_PANEL_COUNT * PHYSICS_CONSTANTS.PANEL_AREA_M2,
   },
 
   batteries: [
@@ -247,7 +251,7 @@ export const useEnergyStore = create<EnergyStore>()(
         const newSoC = calculateBatterySoC(
           prevState.battery.stateOfCharge,
           -batteryPowerFlow,
-          accumulationDeltaTimeHours,
+          visualDeltaTimeHours,
           prevState.battery.capacity,
           prevState.battery.chargeEfficiency,
           prevState.battery.dischargeEfficiency,
@@ -317,13 +321,20 @@ export const useEnergyStore = create<EnergyStore>()(
         const gridExported = gridPower < 0 ? -gridPower * accumulationDeltaTimeHours : 0;
 
         const solarToConsumption = Math.min(solarPower, totalConsumption);
-        const totalSolarUsed = prevState.solar.totalGenerated;
         const costSavings = calculateCostSavings(
           solarToConsumption * accumulationDeltaTimeHours,
           prevState.grid.totalExported,
           prevState.grid.totalImported
         );
-        const co2Saved = calculateCO2Saved(totalSolarUsed);
+
+        // Calculate CO2 savings from solar (all generation, including exports)
+        const co2FromSolar = prevState.solar.totalGenerated * PHYSICS_CONSTANTS.CO2_PER_KWH;
+
+        // Calculate CO2 cost from grid imports (coal-based)
+        const co2FromGrid = prevState.grid.totalImported * PHYSICS_CONSTANTS.CO2_PER_KWH;
+
+        // Net CO2 = savings - cost
+        const netCO2 = co2FromSolar - co2FromGrid;
 
         set({
           state: {
@@ -363,7 +374,7 @@ export const useEnergyStore = create<EnergyStore>()(
             statistics: {
               netEnergy: solarPower - totalConsumption,
               costSavings,
-              co2Saved,
+              co2Saved: netCO2,
               efficiency: solarPower > 0
                 ? ((solarPower - losses.totalLosses) / solarPower) * 100
                 : prevState.statistics.efficiency,
@@ -419,11 +430,9 @@ export const useEnergyStore = create<EnergyStore>()(
 
         let newTime = get().state.currentTime;
         if (weather === 'sunny') {
-          newTime = 12; 
+          newTime = 12;
         } else if (weather === 'night') {
-          newTime = 0;
-        } else if (weather === 'cloudy') {
-          newTime = 14; 
+          newTime = 18;
         }
 
         set((prev) => ({

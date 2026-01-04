@@ -92,7 +92,7 @@ export interface EnergyLosses {
 export interface EnergyStatistics {
   netEnergy: number;           // kW - Net energy flow
   costSavings: number;         // $ - Money saved
-  co2Saved: number;            // kg - CO2 emissions avoided
+  co2Saved: number;            // kg - Net CO2 impact (solar savings - grid emissions)
   efficiency: number;          // % - Overall system efficiency
 }
 

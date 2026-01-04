@@ -5,7 +5,7 @@
 
 export const PHYSICS_CONSTANTS = {
   // Solar Panel Parameters
-  SOLAR_PANEL_EFFICIENCY: 0.18,      // 18% typical efficiency
+  SOLAR_PANEL_EFFICIENCY: 1.0,       // 100% - P_max already includes 18% panel efficiency at STC
   SOLAR_MAX_POWER: 5.0,               // kW - 5kW system (typical residential)
   SOLAR_PANEL_COUNT: 90,              // Number of panels (5x9 grid per slope, 2 slopes)
 
@@ -79,8 +79,8 @@ export const PHYSICS_CONSTANTS = {
   },
 
   // Grid Parameters
-  GRID_IMPORT_RATE: 0.13,             // $/kWh - Typical electricity cost
-  GRID_EXPORT_RATE: 0.08,             // $/kWh - Typical feed-in tariff
+  GRID_IMPORT_RATE: 1.11,             // zł/kWh - Polish electricity cost (2025, total with distribution)
+  GRID_EXPORT_RATE: 0.67,             // zł/kWh - Polish feed-in tariff (2025)
 
   // Environmental Parameters
   CO2_PER_KWH: 0.5,                   // kg CO2 per kWh from grid
