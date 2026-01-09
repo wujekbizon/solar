@@ -39,7 +39,6 @@ interface ControlsProps {
   onSolarEfficiencyChange: (eff: number) => void;
   onIrradianceOverrideChange: (irr: number | null) => void;
   onBatteryInternalResistanceChange: (r: number) => void;
-  onBatteryCapacityChange: (size: 'small' | 'medium' | 'large') => void;
   onAddBattery: (size: BatterySize) => void;
   onRemoveBattery: (id: string) => void;
   onChangeBatterySize: (id: string, size: BatterySize) => void;
@@ -83,7 +82,6 @@ export default function Controls({
   onSolarEfficiencyChange,
   onIrradianceOverrideChange,
   onBatteryInternalResistanceChange,
-  onBatteryCapacityChange,
   onAddBattery,
   onRemoveBattery,
   onChangeBatterySize,
@@ -505,33 +503,6 @@ export default function Controls({
             {/* Battery Physics */}
             <div className="space-y-2 border-t border-[#2d3748] pt-2">
               <h4 className="text-[#00ff88] text-xs font-bold uppercase">Bateria</h4>
-
-              {/* Battery Capacity Selector */}
-              <div>
-                <label className="text-xs text-[#e2e8f0] mb-1 block">Pojemność baterii</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { size: 'small' as const, label: 'Mała', capacity: '13.5 kWh' },
-                    { size: 'medium' as const, label: 'Średnia', capacity: '40 kWh' },
-                    { size: 'large' as const, label: 'Duża', capacity: '100 kWh' },
-                  ].map(({ size, label, capacity }) => (
-                    <button
-                      key={size}
-                      onClick={() => onBatteryCapacityChange(size)}
-                      className={`py-2 px-2 text-xs border-2 font-semibold transition-all ${
-                        (batteryCapacity <= 13.5 && size === 'small') ||
-                        (batteryCapacity > 13.5 && batteryCapacity <= 40 && size === 'medium') ||
-                        (batteryCapacity > 40 && size === 'large')
-                          ? 'border-[#00ff88] bg-[#00ff88] text-[#0a0e14]'
-                          : 'border-[#2d3748] bg-[#0a0e14] text-[#e2e8f0] hover:border-[#00ff88]'
-                      }`}
-                    >
-                      <div>{label}</div>
-                      <div className="text-[10px] opacity-70">{capacity}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               {/* Internal Resistance */}
               <div>

@@ -127,7 +127,7 @@ const INITIAL_STATE: EnergySystemState = {
     efficiency: PHYSICS_CONSTANTS.BATTERY_EFFICIENCY,
     chargeEfficiency: PHYSICS_CONSTANTS.BATTERY_CHARGE_EFFICIENCY,
     dischargeEfficiency: PHYSICS_CONSTANTS.BATTERY_DISCHARGE_EFFICIENCY,
-    maxChargeRate: PHYSICS_CONSTANTS.BATTERY_MAX_CHARGE_RATE,
+    maxChargeRate: PHYSICS_CONSTANTS.BATTERY_CONFIGS.small.capacity * PHYSICS_CONSTANTS.BATTERY_CONFIGS.small.maxCRate,
     internalResistance: 0.05,
     depthOfDischarge: 50,
     cRate: 0,
@@ -243,7 +243,8 @@ export const useEnergyStore = create<EnergyStore>()(
           totalConsumption,
           prevState.battery.stateOfCharge,
           prevState.battery.minSoC ?? 10,
-          prevState.battery.maxSoC ?? 100
+          prevState.battery.maxSoC ?? 100,
+          prevState.battery.maxChargeRate
         );
 
         const currentTemp = calculateTemperature(newTime);
@@ -567,6 +568,7 @@ export const useEnergyStore = create<EnergyStore>()(
           const totalCapacity = newBatteries.reduce((sum, b) => sum + b.capacity, 0);
           const totalCharge = newBatteries.reduce((sum, b) => sum + b.currentCharge, 0);
           const equivalentResistance = 1 / newBatteries.reduce((sum, b) => sum + (1 / b.internalResistance), 0);
+          const totalMaxChargeRate = newBatteries.reduce((sum, b) => sum + (b.capacity * b.maxCRate), 0);
 
           return {
             state: {
@@ -578,6 +580,7 @@ export const useEnergyStore = create<EnergyStore>()(
                 currentCharge: totalCharge,
                 stateOfCharge: (totalCharge / totalCapacity) * 100,
                 internalResistance: equivalentResistance,
+                maxChargeRate: totalMaxChargeRate,
               },
             },
           };
@@ -595,6 +598,7 @@ export const useEnergyStore = create<EnergyStore>()(
           const totalCapacity = newBatteries.reduce((sum, b) => sum + b.capacity, 0);
           const totalCharge = newBatteries.reduce((sum, b) => sum + b.currentCharge, 0);
           const equivalentResistance = 1 / newBatteries.reduce((sum, b) => sum + (1 / b.internalResistance), 0);
+          const totalMaxChargeRate = newBatteries.reduce((sum, b) => sum + (b.capacity * b.maxCRate), 0);
 
           return {
             state: {
@@ -606,6 +610,7 @@ export const useEnergyStore = create<EnergyStore>()(
                 currentCharge: totalCharge,
                 stateOfCharge: (totalCharge / totalCapacity) * 100,
                 internalResistance: equivalentResistance,
+                maxChargeRate: totalMaxChargeRate,
               },
             },
           };
@@ -634,6 +639,7 @@ export const useEnergyStore = create<EnergyStore>()(
           const totalCapacity = newBatteries.reduce((sum, b) => sum + b.capacity, 0);
           const totalCharge = newBatteries.reduce((sum, b) => sum + b.currentCharge, 0);
           const equivalentResistance = 1 / newBatteries.reduce((sum, b) => sum + (1 / b.internalResistance), 0);
+          const totalMaxChargeRate = newBatteries.reduce((sum, b) => sum + (b.capacity * b.maxCRate), 0);
 
           return {
             state: {
@@ -645,6 +651,7 @@ export const useEnergyStore = create<EnergyStore>()(
                 currentCharge: totalCharge,
                 stateOfCharge: (totalCharge / totalCapacity) * 100,
                 internalResistance: equivalentResistance,
+                maxChargeRate: totalMaxChargeRate,
               },
             },
           };

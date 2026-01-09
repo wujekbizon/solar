@@ -144,6 +144,9 @@ export function calculateNetEnergyFlow(
  * @param solarPower - Solar generation (kW)
  * @param consumption - Total consumption (kW)
  * @param currentSoC - Current battery state of charge (%)
+ * @param minSoC - Minimum state of charge (%)
+ * @param maxSoC - Maximum state of charge (%)
+ * @param maxChargeRate - Maximum charge/discharge rate (kW)
  * @returns Battery power (kW, positive = discharging, negative = charging)
  */
 export function calculateBatteryPower(
@@ -151,7 +154,8 @@ export function calculateBatteryPower(
   consumption: number,
   currentSoC: number,
   minSoC: number = 10,
-  maxSoC: number = 100
+  maxSoC: number = 100,
+  maxChargeRate: number = PHYSICS_CONSTANTS.BATTERY_MAX_CHARGE_RATE
 ): number {
   const deficit = consumption - solarPower;
 
@@ -159,7 +163,7 @@ export function calculateBatteryPower(
   if (deficit > 0) {
     // Discharge battery if it has charge
     if (currentSoC > minSoC) {
-      return Math.min(deficit, PHYSICS_CONSTANTS.BATTERY_MAX_CHARGE_RATE);
+      return Math.min(deficit, maxChargeRate);
     }
     return 0; // Battery empty, will need grid
   }
@@ -168,7 +172,7 @@ export function calculateBatteryPower(
   if (deficit < 0) {
     // Charge battery if not full
     if (currentSoC < maxSoC) {
-      return Math.max(deficit, -PHYSICS_CONSTANTS.BATTERY_MAX_CHARGE_RATE);
+      return Math.max(deficit, -maxChargeRate);
     }
     return 0; // Battery full, will export to grid
   }

@@ -116,7 +116,8 @@ export default function Dashboard({ state }: DashboardProps) {
               <p className="font-semibold text-[#e2e8f0] tabular-nums">{formatEnergy(battery.currentCharge)}</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="space-y-2 text-sm">
+            {/* Status */}
             <div>
               <p className="text-xs text-[#718096] uppercase tracking-wider">Status</p>
               <p className="font-semibold text-[#e2e8f0] flex items-center gap-1">
@@ -129,9 +130,17 @@ export default function Dashboard({ state }: DashboardProps) {
                 )}
               </p>
             </div>
-            <div>
-              <p className="text-xs text-[#718096] uppercase tracking-wider">Moc</p>
-              <p className="font-semibold text-[#e2e8f0] tabular-nums">{formatPower(battery.chargingRate)}</p>
+
+            {/* Power Info - 2 columns */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-xs text-[#718096] uppercase tracking-wider">Moc Maks</p>
+                <p className="font-semibold text-[#00ff88] tabular-nums">{formatPower(battery.maxChargeRate ?? 5.0)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-[#718096] uppercase tracking-wider">Moc Aktualna</p>
+                <p className="font-semibold text-[#e2e8f0] tabular-nums">{formatPower(battery.chargingRate)}</p>
+              </div>
             </div>
           </div>
         </div>

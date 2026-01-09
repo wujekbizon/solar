@@ -62,19 +62,19 @@ export const PHYSICS_CONSTANTS = {
       size: 'small' as const,
       capacity: 13.5,                 // kWh - Tesla Powerwall
       internalResistance: 0.05,       // Ω - Higher resistance, more losses
-      maxCRate: 1.0,                  // 1C - Can discharge full capacity in 1 hour
+      maxCRate: 0.37,                 // 0.37C = 5 kW max power
     },
     medium: {
       size: 'medium' as const,
       capacity: 40,                   // kWh - 3× Powerwall equivalent
       internalResistance: 0.02,       // Ω - Lower resistance, better efficiency
-      maxCRate: 0.8,                  // 0.8C - Slightly conservative discharge
+      maxCRate: 0.1875,               // 0.1875C = 7.5 kW max power
     },
     large: {
       size: 'large' as const,
       capacity: 100,                  // kWh - Commercial/large residential
       internalResistance: 0.01,       // Ω - Best efficiency, lowest losses
-      maxCRate: 0.5,                  // 0.5C - Conservative discharge for longevity
+      maxCRate: 0.15,                 // 0.15C = 15 kW max power
     },
   },
 
