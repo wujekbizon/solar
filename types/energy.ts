@@ -51,7 +51,9 @@ export interface BatterySystem {
   efficiency: number;          // 0-1 - Charge/discharge efficiency (legacy)
   chargeEfficiency: number;    // 0-1 - Charging efficiency
   dischargeEfficiency: number; // 0-1 - Discharging efficiency
-  maxChargeRate: number;       // kW - Maximum charge rate (C-rate)
+  maxChargeRate: number;       // kW - Maximum theoretical charge rate
+  availableDischargeRate?: number; // kW - Currently available discharge power (excludes blocked batteries)
+  availableChargeRate?: number;    // kW - Currently available charge power (excludes full batteries)
   internalResistance: number;  // Ω - Battery internal resistance
   depthOfDischarge: number;    // % - Current DoD (0-100%)
   cRate: number;               // Current C-rate (power/capacity)

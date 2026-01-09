@@ -246,6 +246,25 @@ export const useEnergyStore = create<EnergyStore>()(
         const inverterLoss = totalConsumption * (1 - PHYSICS_CONSTANTS.INVERTER_EFFICIENCY);
         const effectiveConsumption = totalConsumption + inverterLoss;
 
+        // Calculate available battery power based on individual SoC states
+        const availableDischargeRate = prevState.batteries.reduce((sum, bat) => {
+          if (bat.stateOfCharge > (prevState.battery.minSoC ?? 10)) {
+            return sum + (bat.capacity * bat.maxCRate);
+          }
+          return sum;
+        }, 0);
+
+        const availableChargeRate = prevState.batteries.reduce((sum, bat) => {
+          if (bat.stateOfCharge < (prevState.battery.maxSoC ?? 100)) {
+            return sum + (bat.capacity * bat.maxCRate);
+          }
+          return sum;
+        }, 0);
+
+        // Use deficit to determine which limit applies
+        const deficit = effectiveConsumption - effectiveSolarPower;
+        const effectiveMaxChargeRate = deficit > 0 ? availableDischargeRate : availableChargeRate;
+
         // Use effective values for battery and grid calculations
         const batteryPowerFlow = calculateBatteryPower(
           effectiveSolarPower,
@@ -253,7 +272,7 @@ export const useEnergyStore = create<EnergyStore>()(
           prevState.battery.stateOfCharge,
           prevState.battery.minSoC ?? 10,
           prevState.battery.maxSoC ?? 100,
-          prevState.battery.maxChargeRate
+          effectiveMaxChargeRate
         );
 
         // Wire gauge-based resistance calculations
@@ -306,6 +325,55 @@ export const useEnergyStore = create<EnergyStore>()(
           prevState.battery.minSoC ?? 10,
           prevState.battery.maxSoC ?? 100
         );
+
+        // Distribute energy change to individual batteries (maintain separate SoC levels)
+        const energyChange = (newSoC - prevState.battery.stateOfCharge) / 100 * prevState.battery.capacity; // kWh
+        const newBatteries = prevState.batteries.map(bat => {
+          if (energyChange < 0) {
+            // Discharging: only from batteries above minSoC
+            if (bat.stateOfCharge <= (prevState.battery.minSoC ?? 10)) {
+              return bat; // Blocked battery, no change
+            }
+            // Calculate available charge above minSoC
+            const availableCharge = bat.currentCharge - (bat.capacity * (prevState.battery.minSoC ?? 10) / 100);
+            const totalAvailable = prevState.batteries.reduce((sum, b) => {
+              if (b.stateOfCharge > (prevState.battery.minSoC ?? 10)) {
+                return sum + (b.currentCharge - (b.capacity * (prevState.battery.minSoC ?? 10) / 100));
+              }
+              return sum;
+            }, 0);
+            // Distribute discharge proportionally
+            const batteryEnergyChange = totalAvailable > 0 ? energyChange * (availableCharge / totalAvailable) : 0;
+            const newCharge = Math.max(bat.capacity * (prevState.battery.minSoC ?? 10) / 100, bat.currentCharge + batteryEnergyChange);
+            return {
+              ...bat,
+              currentCharge: newCharge,
+              stateOfCharge: (newCharge / bat.capacity) * 100,
+            };
+          } else if (energyChange > 0) {
+            // Charging: only batteries below maxSoC
+            if (bat.stateOfCharge >= (prevState.battery.maxSoC ?? 100)) {
+              return bat; // Full battery, no change
+            }
+            // Calculate remaining capacity below maxSoC
+            const remainingCapacity = (bat.capacity * (prevState.battery.maxSoC ?? 100) / 100) - bat.currentCharge;
+            const totalRemaining = prevState.batteries.reduce((sum, b) => {
+              if (b.stateOfCharge < (prevState.battery.maxSoC ?? 100)) {
+                return sum + ((b.capacity * (prevState.battery.maxSoC ?? 100) / 100) - b.currentCharge);
+              }
+              return sum;
+            }, 0);
+            // Distribute charge proportionally
+            const batteryEnergyChange = totalRemaining > 0 ? energyChange * (remainingCapacity / totalRemaining) : 0;
+            const newCharge = Math.min(bat.capacity * (prevState.battery.maxSoC ?? 100) / 100, bat.currentCharge + batteryEnergyChange);
+            return {
+              ...bat,
+              currentCharge: newCharge,
+              stateOfCharge: (newCharge / bat.capacity) * 100,
+            };
+          }
+          return bat; // No energy change
+        });
 
         // Grid power based on effective values
         const gridPower = calculateGridPower(effectiveSolarPower, batteryPowerFlow, effectiveConsumption);
@@ -370,12 +438,17 @@ export const useEnergyStore = create<EnergyStore>()(
               totalGenerated: prevState.solar.totalGenerated + solarGenerated,
             },
 
+            // Update individual batteries with distributed energy changes
+            batteries: newBatteries,
+
             battery: {
               ...prevState.battery,
               currentCharge: (newSoC / 100) * prevState.battery.capacity,
               stateOfCharge: newSoC,
               charging: batteryPowerFlow < 0,
               chargingRate: Math.abs(batteryPowerFlow),
+              availableDischargeRate,
+              availableChargeRate,
             },
 
             consumption: {
@@ -594,6 +667,7 @@ export const useEnergyStore = create<EnergyStore>()(
           const totalCapacity = newBatteries.reduce((sum, b) => sum + b.capacity, 0);
           const totalCharge = newBatteries.reduce((sum, b) => sum + b.currentCharge, 0);
           const equivalentResistance = 1 / newBatteries.reduce((sum, b) => sum + (1 / b.internalResistance), 0);
+          // Note: This is max theoretical power. Actual available power depends on individual SoC (calculated in updateSimulation)
           const totalMaxChargeRate = newBatteries.reduce((sum, b) => sum + (b.capacity * b.maxCRate), 0);
 
           return {
@@ -624,6 +698,7 @@ export const useEnergyStore = create<EnergyStore>()(
           const totalCapacity = newBatteries.reduce((sum, b) => sum + b.capacity, 0);
           const totalCharge = newBatteries.reduce((sum, b) => sum + b.currentCharge, 0);
           const equivalentResistance = 1 / newBatteries.reduce((sum, b) => sum + (1 / b.internalResistance), 0);
+          // Note: This is max theoretical power. Actual available power depends on individual SoC (calculated in updateSimulation)
           const totalMaxChargeRate = newBatteries.reduce((sum, b) => sum + (b.capacity * b.maxCRate), 0);
 
           return {
@@ -665,6 +740,7 @@ export const useEnergyStore = create<EnergyStore>()(
           const totalCapacity = newBatteries.reduce((sum, b) => sum + b.capacity, 0);
           const totalCharge = newBatteries.reduce((sum, b) => sum + b.currentCharge, 0);
           const equivalentResistance = 1 / newBatteries.reduce((sum, b) => sum + (1 / b.internalResistance), 0);
+          // Note: This is max theoretical power. Actual available power depends on individual SoC (calculated in updateSimulation)
           const totalMaxChargeRate = newBatteries.reduce((sum, b) => sum + (b.capacity * b.maxCRate), 0);
 
           return {
