@@ -215,10 +215,7 @@ export const useEnergyStore = create<EnergyStore>()(
         const now = Date.now();
         const deltaTimeMs = now - lastUpdate;
 
-        const visualDeltaTimeHours = (deltaTimeMs / 1000 / 3600) * prevState.timeSpeed;
-
-        const ACCUMULATION_MULTIPLIER = 100;
-        const accumulationDeltaTimeHours = visualDeltaTimeHours * ACCUMULATION_MULTIPLIER;
+        const visualDeltaTimeHours = (deltaTimeMs / 1000 / 3600) * prevState.timeSpeed * PHYSICS_CONSTANTS.BASE_TIME_MULTIPLIER;
 
         let newTime = prevState.currentTime + visualDeltaTimeHours;
         if (newTime >= 24) newTime -= 24;
@@ -227,6 +224,7 @@ export const useEnergyStore = create<EnergyStore>()(
           ? prevState.weather
           : getWeatherFromTime(newTime);
 
+        // Calculate raw solar power
         const solarPower = calculateSolarPower(
           newTime,
           weather,
@@ -236,52 +234,47 @@ export const useEnergyStore = create<EnergyStore>()(
           prevState.solar.irradianceOverride
         );
 
-        const totalConsumption = calculateTotalConsumption(prevState.consumption.appliances);
+        // Calculate temperature early for loss calculations
+        const currentTemp = calculateTemperature(newTime);
 
+        // Apply solar temperature loss to get effective solar power
+        const solarTempLoss = calculateSolarTempLoss(solarPower, currentTemp);
+        const effectiveSolarPower = solarPower - solarTempLoss;
+
+        // Calculate raw consumption and apply inverter loss
+        const totalConsumption = calculateTotalConsumption(prevState.consumption.appliances);
+        const inverterLoss = totalConsumption * (1 - PHYSICS_CONSTANTS.INVERTER_EFFICIENCY);
+        const effectiveConsumption = totalConsumption + inverterLoss;
+
+        // Use effective values for battery and grid calculations
         const batteryPowerFlow = calculateBatteryPower(
-          solarPower,
-          totalConsumption,
+          effectiveSolarPower,
+          effectiveConsumption,
           prevState.battery.stateOfCharge,
           prevState.battery.minSoC ?? 10,
           prevState.battery.maxSoC ?? 100,
           prevState.battery.maxChargeRate
         );
 
-        const currentTemp = calculateTemperature(newTime);
-
-        const newSoC = calculateBatterySoC(
-          prevState.battery.stateOfCharge,
-          -batteryPowerFlow,
-          visualDeltaTimeHours,
-          prevState.battery.capacity,
-          prevState.battery.chargeEfficiency,
-          prevState.battery.dischargeEfficiency,
-          currentTemp,
-          prevState.battery.minSoC ?? 10,
-          prevState.battery.maxSoC ?? 100
-        );
-
-        const gridPower = calculateGridPower(solarPower, batteryPowerFlow, totalConsumption);
-
         // Wire gauge-based resistance calculations
         const baseResistance = PHYSICS_CONSTANTS.WIRE_GAUGE_RESISTANCE[prevState.system.wireGauge as keyof typeof PHYSICS_CONSTANTS.WIRE_GAUGE_RESISTANCE] ?? 0.006;
         const systemVoltage = prevState.system.voltage ?? 240;
 
-        const wireLossSolar = solarPower > 0 && batteryPowerFlow < 0
-          ? calculateWireLoss(Math.abs(batteryPowerFlow), baseResistance * 3.3, systemVoltage)
+        // Wire losses using documented multipliers
+        const wireLossSolar = effectiveSolarPower > 0 && batteryPowerFlow < 0
+          ? calculateWireLoss(Math.abs(batteryPowerFlow), baseResistance * PHYSICS_CONSTANTS.WIRE_LENGTH_MULTIPLIERS.solarToBattery, systemVoltage)
           : 0;
         const wireLossBattery = batteryPowerFlow > 0
-          ? calculateWireLoss(batteryPowerFlow, baseResistance * 5, systemVoltage)
+          ? calculateWireLoss(batteryPowerFlow, baseResistance * PHYSICS_CONSTANTS.WIRE_LENGTH_MULTIPLIERS.batteryToHouse, systemVoltage)
           : 0;
-        const wireLossGrid = gridPower > 0
-          ? calculateWireLoss(gridPower, baseResistance * 8.3, systemVoltage)
-          : 0;
+        const wireLossGrid = batteryPowerFlow < 0 ? 0 : calculateWireLoss(
+          Math.max(0, effectiveConsumption - effectiveSolarPower - batteryPowerFlow),
+          baseResistance * PHYSICS_CONSTANTS.WIRE_LENGTH_MULTIPLIERS.gridToHouse,
+          systemVoltage
+        );
         const totalWireLoss = wireLossSolar + wireLossBattery + wireLossGrid;
 
-        const inverterLoss = totalConsumption * (1 - PHYSICS_CONSTANTS.INVERTER_EFFICIENCY);
-
-        const solarTempLoss = calculateSolarTempLoss(solarPower, currentTemp);
-
+        // Battery efficiency losses
         const batteryChargeLoss = batteryPowerFlow < 0
           ? Math.abs(batteryPowerFlow) * (1 - PHYSICS_CONSTANTS.BATTERY_CHARGE_EFFICIENCY)
           : 0;
@@ -290,11 +283,32 @@ export const useEnergyStore = create<EnergyStore>()(
           : 0;
 
         // Battery internal resistance loss (I²R)
-        const batteryCurrent = Math.abs(batteryPowerFlow * 1000) / systemVoltage; // Convert kW to W, then I = P/V
+        const batteryCurrent = Math.abs(batteryPowerFlow * 1000) / systemVoltage;
         const batteryResistiveLoss = calculateBatteryResistiveLoss(
           batteryCurrent,
           prevState.battery.internalResistance ?? 0.05
         );
+
+        // Apply battery I²R loss to power flow for SoC calculation
+        const batteryPowerFlowWithLoss = batteryPowerFlow > 0
+          ? batteryPowerFlow + batteryResistiveLoss  // Discharging: need more from battery
+          : batteryPowerFlow - batteryResistiveLoss; // Charging: less goes into battery
+
+        // Calculate SoC with consistent time multiplier and loss-adjusted flow
+        const newSoC = calculateBatterySoC(
+          prevState.battery.stateOfCharge,
+          -batteryPowerFlowWithLoss,
+          visualDeltaTimeHours,  // Use same multiplier as energy accumulation
+          prevState.battery.capacity,
+          prevState.battery.chargeEfficiency,
+          prevState.battery.dischargeEfficiency,
+          currentTemp,
+          prevState.battery.minSoC ?? 10,
+          prevState.battery.maxSoC ?? 100
+        );
+
+        // Grid power based on effective values
+        const gridPower = calculateGridPower(effectiveSolarPower, batteryPowerFlow, effectiveConsumption);
 
         const losses = {
           wireLosses: {
@@ -316,14 +330,15 @@ export const useEnergyStore = create<EnergyStore>()(
           totalLosses: totalWireLoss + inverterLoss + batteryChargeLoss + batteryDischargeLoss + batteryResistiveLoss + solarTempLoss,
         };
 
-        const solarGenerated = solarPower * accumulationDeltaTimeHours;
-        const consumedEnergy = totalConsumption * accumulationDeltaTimeHours;
-        const gridImported = gridPower > 0 ? gridPower * accumulationDeltaTimeHours : 0;
-        const gridExported = gridPower < 0 ? -gridPower * accumulationDeltaTimeHours : 0;
+        // Energy accumulation (all use same time multiplier now)
+        const solarGenerated = effectiveSolarPower * visualDeltaTimeHours;
+        const consumedEnergy = totalConsumption * visualDeltaTimeHours;
+        const gridImported = gridPower > 0 ? gridPower * visualDeltaTimeHours : 0;
+        const gridExported = gridPower < 0 ? -gridPower * visualDeltaTimeHours : 0;
 
-        const solarToConsumption = Math.min(solarPower, totalConsumption);
+        const solarToConsumption = Math.min(effectiveSolarPower, totalConsumption);
         const costSavings = calculateCostSavings(
-          solarToConsumption * accumulationDeltaTimeHours,
+          solarToConsumption * visualDeltaTimeHours,
           prevState.grid.totalExported,
           prevState.grid.totalImported
         );
@@ -337,6 +352,12 @@ export const useEnergyStore = create<EnergyStore>()(
         // Net CO2 = savings - cost
         const netCO2 = co2FromSolar - co2FromGrid;
 
+        // Energy balance validation: Ein - Eout - DeltaStored - Losses should ≈ 0
+        const energyIn = effectiveSolarPower + Math.max(0, gridPower);
+        const energyOut = effectiveConsumption + Math.max(0, -gridPower);
+        const deltaStored = -batteryPowerFlow; // Negative flow = charging = energy stored
+        const energyBalance = energyIn - energyOut - deltaStored - losses.totalLosses;
+
         set({
           state: {
             ...prevState,
@@ -345,7 +366,7 @@ export const useEnergyStore = create<EnergyStore>()(
 
             solar: {
               ...prevState.solar,
-              currentPower: solarPower,
+              currentPower: effectiveSolarPower,  // Show effective (loss-adjusted) power
               totalGenerated: prevState.solar.totalGenerated + solarGenerated,
             },
 
@@ -373,15 +394,20 @@ export const useEnergyStore = create<EnergyStore>()(
             },
 
             statistics: {
-              netEnergy: solarPower - totalConsumption,
+              netEnergy: effectiveSolarPower + batteryPowerFlow - effectiveConsumption,  // Include all flows
               costSavings,
               co2Saved: netCO2,
-              efficiency: solarPower > 0
-                ? ((solarPower - losses.totalLosses) / solarPower) * 100
+              efficiency: effectiveSolarPower > 0
+                ? ((effectiveSolarPower - losses.totalLosses) / effectiveSolarPower) * 100
                 : prevState.statistics.efficiency,
             },
 
             losses,
+
+            system: {
+              ...prevState.system,
+              energyBalance,  // Track energy balance for debugging
+            },
           },
           lastUpdate: now,
         });

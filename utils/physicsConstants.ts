@@ -24,6 +24,12 @@ export const PHYSICS_CONSTANTS = {
     batteryToHouse: 0.03,             // 5m DC wiring
     gridToHouse: 0.05,                // 20m AC wiring
   },
+  // Wire length multipliers (effective meters of wire run)
+  WIRE_LENGTH_MULTIPLIERS: {
+    solarToBattery: 3.3,              // ~33m panel to battery run
+    batteryToHouse: 5.0,              // ~50m house distribution
+    gridToHouse: 8.3,                 // ~83m meter to circuits
+  },
   SYSTEM_VOLTAGE: 240,                // Volts
 
   // Inverter
@@ -88,6 +94,7 @@ export const PHYSICS_CONSTANTS = {
   // Time Parameters
   SECONDS_PER_HOUR: 3600,
   HOURS_PER_DAY: 24,
+  BASE_TIME_MULTIPLIER: 180,        // 1× speed = 3 sim hours per real minute
 
   // Sun Parameters
   SUNRISE_HOUR: 6,                    // 6 AM
